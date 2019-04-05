@@ -1,0 +1,148 @@
+<?rfc toc="yes" ?>
+<?rfc symrefs="yes" ?>
+<?rfc sortrefs="yes"?>
+<?rfc strict="no" ?>
+<?rfc rfcedstyle="yes"?>
+<?rfc subcompact="no"?>
+<rfc ipr="trust200902" category="info" docName="draft-kucherawy-httpbis-dict-sec-00">
+<front>
+<title abbrev="Compression Dictionary Security">
+Security Considerations Regarding Compression Dictionaries
+</title>
+<author initials="M. S." surname="Kucherawy" fullname="Murray S. Kucherawy">
+<organization> Facebook, Inc. </organization>
+<address>
+<postal>
+<street>1 Hacker Way</street>
+<city>Menlo Park</city>
+<region>CA</region>
+<code>94025</code>
+<country>US</country>
+</postal>
+<email>msk@fb.com</email>
+</address>
+</author>
+<date year="2018"/>
+<area>ART</area>
+<workgroup>Individual submission</workgroup>
+<keyword>Compression</keyword>
+<keyword>Dictionaries</keyword>
+<abstract>
+<t>
+Data compression algorithms benefit from blocks of tuning data called "dictionaries". These can greatly improve data compression speed and/or ratios, but their use and application has numerous potential security issues of concern to the communities using them. This document enumerates security issues known about compression dictionaries at the time of publication so that future proposals for use of dictionaries can benefit from this collected material.
+</t>
+</abstract>
+</front>
+<middle>
+<section anchor="intro" title="Introduction">
+<t>
+Brotli
+<xref target="RFC7932"/>
+and Zstandard
+<xref target="RFC8478"/>
+are examples of two modern data compression algorithms. While useful in their basic forms, they can be made far more effective with specific types of payloads when used with an object called a "dictionary". A dictionary is a map that can be applied during compression or uncompression that provides an advantage when operating against specific types of content. One might, for example, develop a dictionary that makes the compression algorithm more effective when applied to specific types of audio data.
+</t>
+<t>
+As dictionaries are being developed, some issues have come to light that indicate ways that use of dictionaries might introduce destructive side effects to the environment in which their use is applied. This document is a collection of those topics, which can be consulted as work on dictionaries progresses; later, as RFCs are published advancing dictionaries, the content of this document could be used as a checklist to ensure that either the algorithms or their specification documents have been appropriately evaluated against these concerns.
+</t>
+</section>
+<section anchor="definitions" title="Definitions">
+<t>
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in BCP 14
+<xref target="RFC2119"/>
+<xref target="RFC8174"/>
+when, and only when, they appear in all capitals, as shown here.
+</t>
+</section>
+<section anchor="issues" title="Dictionary Security Concerns">
+<t>
+These subsections each describe an issue that has been raised with respect to use of dictionaries as input to compression and uncompression. Where possible and known, acceptable mitigations are described.
+</t>
+<t>
+[TODO: This is a bullet list for now, but each bullet item will gradually be converted into a subsection containing relevant discussion.]
+</t>
+<t>
+<list style="symbols">
+<t>
+Attacks that use dictionary-based compression to recover content in the response.
+</t>
+<t>
+Attacks that use dictionary-based compression to recover content in the dictionary.
+</t>
+<t>
+Attacks that leverage dictionary-based compression to violate CORS/SOP/CSP. [need references and expansions for these]
+</t>
+<t>
+Attacks that manipulate a response's content by manipulating the contents of a dictionary.
+</t>
+<t>
+Attacks that obfuscate a malicious response's content through the use of dictionary-based compression.
+</t>
+<t>
+Attacks that identify users by fingerprinting their advertisement or use of dictionaries.
+</t>
+<t>
+Attacks that reveal past user behavior or associations through the negotiation and use of dictionaries.
+</t>
+<t>
+Attacks that use dictionaries to achieve denial-of-service / resource exhaustion:
+<list style="symbols">
+<t> against network resources </t>
+<t> against storage resources </t>
+<t> against computation resources </t>
+<t> against the client </t>
+<t> against the server </t>
+<t> against an intermediary </t>
+<t> against a third-party </t>
+</list>
+</t>
+<t>
+Inadvertent leakage of private information in the creation of dictionaries.
+</t>
+<t>
+General security risks that follow from complexity of implementation.
+</t>
+</list>
+</t>
+</section>
+<section anchor="iana" title="IANA Considerations">
+<t> This document includes no actions for IANA. </t>
+<t>
+[RFC Editor: Please remove this section before publication.]
+</t>
+</section>
+<section anchor="security" title="Security Considerations">
+<t>
+This document enumerates known security considerations about a space that is under development. The list of issues discussed above may not be exhaustive, but it is hopefully complete enough to ensure quality work is produced as a result.
+</t>
+</section>
+</middle>
+<back>
+<references title="Normative References"> </references>
+<references title="Informative References"> </references>
+<section anchor="thanks" title="Acknowledgements">
+<t>
+The author wishes to acknowledge the following for their review and constructive criticism of this update: TBD
+</t>
+</section>
+<section anchor="prior_art" title="Prior Art">
+<t>
+Some prior art worth considering:
+<list style="symbols">
+<t>
+draft-lee-sdch-spec, which was implemented in Chrome but then withdrawn
+</t>
+<t> draft-vkrasnov-h2-compression-dictionaries </t>
+<t> draft-vandevenne-shared-brotli-format </t>
+<t> HTTPBIS discussion during IETF 97 </t>
+<t>
+Brotli "fetch spec" proposal: https://fetch.spec.whatwg.org/
+</t>
+<t>
+various HTTPBIS mailing list threads about dictionaries
+</t>
+</list>
+</t>
+</section>
+</back>
+</rfc>
