@@ -1,3 +1,6 @@
+.PHONY: latest
+latest:: raw
+
 LIBDIR := lib
 include $(LIBDIR)/main.mk
 

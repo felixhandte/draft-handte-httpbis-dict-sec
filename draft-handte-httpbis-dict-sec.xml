@@ -1,0 +1,1399 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd">
+<?rfc toc="yes" ?>
+<?rfc symrefs="yes" ?>
+<?rfc sortrefs="yes" ?>
+<?rfc strict="no" ?>
+<?rfc rfcedstyle="yes" ?>
+<?rfc subcompact="no" ?>
+<rfc ipr="trust200902" category="info" docName="draft-handte-httpbis-dict-sec-latest">
+  <front>
+    <title abbrev="Compression Dictionary Security">
+      Security Considerations Regarding Compression Dictionaries
+    </title>
+    <author initials="W. F. P." surname="Handte" fullname="W. Felix P. Handte">
+      <organization>Facebook, Inc.</organization>
+      <address>
+        <postal>
+          <street>770 Broadway</street>
+          <city>New York</city>
+          <region>NY</region>
+          <code>10003</code>
+          <country>US</country>
+        </postal>
+        <email>felixh@fb.com</email>
+      </address>
+    </author>
+    <date year="2019"/>
+    <area>ART</area>
+    <workgroup>Individual submission</workgroup>
+    <keyword>Compression</keyword>
+    <keyword>Dictionaries</keyword>
+    <keyword>Security</keyword>
+    <abstract>
+      <t>
+        Dictionary-based compression enables better performance, but brings state into the process of compression, with all the complexities that follow. This document explores the security implications of this technique in the context of internet protocols and enumerates known risks and mitigations.
+      </t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section anchor="intro" title="Introduction">
+      <t>
+        General-purpose data compression algorithms are designed to achieve good performance on many different kinds of data. However, that general-purpose nature makes them, to a certain extent, jacks of all trades and masters of none: a compressor that has been tuned for a specific use case can always perform better than a generic equivalent.
+      </t>
+      <t>
+        In response, a number of modern compression algorithms (including DEFLATE <xref target="DEFLATE"/>, Brotli <xref target="BROTLI"/>, and Zstandard <xref target="ZSTD"/>) have developed a generic capability to specialize themselves. In addition to the actual message to be processed, these compressors allow users to provide additional context information, which the compressor and decompressor can use to tailor their internal states to that particular use case. To the extent that this auxiliary data matches the nature of the message being compressed, the compressor can use it to produce a smaller compressed representation of the message. This auxiliary data can include various things, but it has come to be known as a "dictionary."
+      </t>
+      <t>
+        As dictionary-based compression has been adopted, it has been found that its use can present security challenges. This document is a collection of those challenges. As future use cases for dictionaries are contemplated, this document can be used as a checklist to ensure that the protocols, their specifications, and their implementations have been appropriately evaluated against these concerns.
+      </t>
+    </section>
+
+    <!--
+    <section anchor="terminology" title="Terminology">
+      <t>
+        Some terms used elsewhere in this document are defined here for clarity.
+      </t>
+      <t>
+        <list style="hanging">
+          <t hangText="compression scheme:">
+            A compression scheme defines a data format that can be used to more compactly encode given messages. In the case of a general-purpose data compressor, the input and output formats are unconstrained byte streams.
+
+            It is worth distinguishing a compression format from a compression implementation. The format defines a language that can be used to encode messages (hopefully more succinctly than their native representations).
+          </t>
+          <t hangText="compressor:">
+            A compressor is an implementation of a particular ... [TODO]
+
+            There are usually multiple valid representations of an input in the language in which the compressed message is expressed. As a result, the compression algorithm is non-deterministic, even if a particular implementation of the algorithm is. (Consider how different compression levels in the same compressor spend more or less time trying to find smaller representations of the input.)
+          </t>
+          <t hangText="decompressor:">
+            A decompressor is an implementation of the algorithm to reconstitute the original message from its compressed representation.
+          </t>
+          <t hangText="compression:">
+            A transformation operation, performed by a compressor, that takes in a message and encodes it in the compression format.
+          </t>
+          <t hangText="decompression:">
+            The inverse operation to compression, a transformation, performed by a decompressor, that takes a compressed message and reproduces the original message.
+
+            Unlike compression, decompression is a deterministic operation. The result of decompression is determined by all of: the algorithm, the compressed message, and the dictionary, if present.
+          </t>
+          <t hangText="compressing agent:">
+            The application or system which produces messages, calling on a compressor to compress them, before communicating them to other agents.
+          </t>
+          <t hangText="decompressing agent:">
+            The application or system which receives messages, calling on a decompressor to decompress them.
+          </t>
+          <t hangText="dictionary:">
+            The word "dictionary" is extremely overloaded in computer science. In the context of this document, it is used only in the following way. A dictionary is a string that is presented to the compressor at compression- and decompression-time, the contents of which can be used by the compressor to produce a more compact representation of the input that can nonetheless be decompressed when the same bytes are presented as a dictionary to the decompressor.
+          </t>
+          <t hangText="message:">
+            A byte string, representing protocol content, that is to be compressed.
+          </t>
+          <t hangText="metadata:">
+            Protocol content associated with a message or connection that remains uncompressed (outside the compressed wrapper).
+          </t>
+          <t hangText="designer:">
+            [TODO]
+          </t>
+          <t hangText="implementor:">
+            [TODO]
+          </t>
+          <t hangText="participant:">
+            [TODO]
+          </t>
+        </list>
+      </t>
+    </section>
+    -->
+
+    <!--
+      Possible protocol features:
+
+      * encryption
+      * authentication
+      * trustedness
+      * anonymity
+      * multicast / anycast / multipath
+      * asynchrony
+      * out of order
+      * statelessness
+      * resource constraints
+      * zero or one or more dictionaries
+    -->
+
+    <section anchor="basis" title="Basis">
+      <section anchor="compression-environments" title="Compression Environments">
+        <t>
+          The security of any use of compression depends greatly on the environment in which it is deployed, and the threats it is subjected to. This document analyzes dictionary-based compression as it might be used by a generic internet protocol, in which:
+          <list style="symbols">
+            <t>Agents exchange messages over possibly-trusted, possibly-authenticated, possibly-encrypted channels, which are vulnerable to some combination of traffic analysis, eavesdropping, and manipulation.</t>
+            <t>Agents exchange messages with parties they may not trust.</t>
+            <t>Agents may take protocol actions (generating, sending, receiving, and interpreting messages) in response to triggers other than user action. Some examples include:
+              <list style="symbols">
+                <!-- <t>Initiating exchanges based on user action.</t> -->
+                <t>Replying automatically to received messages.</t>
+                <t>Relaying or forwarding received messages to other agents (e.g., an SMTP relay).</t>
+                <t>Exchanging messages at the behest of trusted or untrusted code (e.g., trusted: a website codebase generating responses to HTTP requests, untrusted: a website's JavaScript code running in a browser.</t>
+              </list>
+            </t>
+          </list>
+        </t>
+        <t>
+          This document aims to enumerate all security risks raised when using dictionary-based compression in this baseline environment. In addition to attempting an exhaustive list of possible security risks, this document will identify desirable properties of the protocol stack and environment in which the compression is used and other methods with which individual concerns can be obviated or mitigated.
+        </t>
+      </section>
+
+      <section anchor="security-properties" title="Security Properties">
+        <t>
+          [TODO]
+        </t>
+      </section>
+      <section anchor="threat-model" title="Threat Model">
+        <t>
+          [TODO]
+        </t>
+      </section>
+      <!--
+      <section anchor="security-properties" title="Security Properties">
+        <t>
+          Similarly, there are a number of properties of the protocol in question which may be desirable to preserve. ... [TODO]
+        </t>
+        <t>
+          <list style="symbols">
+            <t>
+              Privacy <xref target="PRIVACY"/>
+            </t>
+            <t>
+              Communications Security
+              <list style="symbols">
+                <t>Confidentiality</t>
+                <t>Integrity</t>
+                <t>Authentication</t>
+              </list>
+            </t>
+            <t>
+              Systems Security
+              <list style="symbols">
+                <t>Unauthorized Use</t>
+                <t>Inappropriate Use</t>
+                <t>Denial of Service</t>
+              </list>
+            </t>
+          </list>
+        </t>
+      </section>
+      <section anchor="threat-model" title="Threat Model">
+        <t>
+          This document draws on the threat model described in <xref section="3" target="SECURITY-GUIDELINES">Section 3 of "Guidelines for Writing RFC Text on Security Considerations"</xref> and expanded on in <xref target="I-D.arkko-arch-internet-threat-model"/> ... [TODO]
+        </t>
+      </section>
+      -->
+      <section anchor="existing-issues" title="Existing Attacks">
+        <t>
+          This document excludes from its analysis security risks that are already present without the use of dictionary compression.
+        </t>
+        <t>
+          In particular, compression as it broadly used today--without dictionaries--is known to introduce vulnerabilities. The most well known series of these attacks (<xref target="CRIME"/> et al.) recovers message content of inaccessible or encrypted traffic by observing message sizes while manipulating other parts of the message or traffic stream.
+        </t>
+        <!-- <t>
+          In most ways, dictionary-based compression neither exacerbates nor ameliorates these existing issues. ... [TODO]
+        </t> -->
+      </section>
+    </section>
+
+    <section anchor="dictionaries" title="Dictionaries">
+      <section anchor="dictionary-compression" title="Dictionary Compression">
+        <t>
+          Classically, compression algorithms operate as stateless, pure functions. In that mode, their output depends solely on the input message and the algorithm's implementation details. Dictionaries break that paradigm, introducing an additional input to the compression and decompression operations. Compressors may then leverage the contents of that additional input--the dictionary--to produce more compact representations of their inputs.
+        </t>
+        <figure>
+          <preamble></preamble>
+          <artwork><![CDATA[
+                 +--------- dictionary ----------+
+                 |                               |
+                 V                               V
+           +------------+   compressed    +--------------+
+message -> | compressor | --> message --> | decompressor | -> message
+           +------------+ representation  +--------------+
+          ]]></artwork>
+          <postamble></postamble>
+       </figure>
+        <t>
+          In introducing this other element, the interpretation of the compressed message becomes dependent on the content of the dictionary, and therefore same dictionary that was used to compress a message must be presented at decompression time. In this way, dictionaries are in effect an out-of-band communication or pre-shared key between the compressor and decompressor.
+        </t>
+        <!-- <t>
+          This represents a kind of entanglement.
+        </t> -->
+        <!-- <t>
+          Although dictionaries may themselves be messages exchanged over the protocol in question, ... [TODO] ...
+        </t> -->
+      </section>
+      <section anchor="dictionary-contents" title="Dictionary Contents">
+        <t>
+          In principle, the contents of a dictionary are solely the concern of the compressor and decompressor, and implementations should be free to treat them as opaque blobs. However, when analyzing their security characteristics, it's useful to understand the data that is actually present in a dictionaries.
+        </t>
+        <t>
+          Dictionaries take two broad forms.
+        </t>
+        <section anchor="dictionary-contents-unstructured" title="Unstructured Dictionaries">
+          <t>
+            Some compressors (e.g., DEFLATE <xref target="DEFLATE"/> and Zstandard <xref target="ZSTD"/>) accept arbitrary, unstructured bytestreams as dictionaries. In these cases, the dictionary is used purely as a buffer in which LZ77-style content matches can be found <xref target="LZ77"/>. That is, when the dictionary contains some sequence of bytes that is also present in the message, the compressor can choose to represent those bytes by referencing them in the dictionary, rather than by representing them literally.
+          </t>
+        </section>
+        <section anchor="dictionary-contents-structured" title="Structured Dictionaries">
+          <t>
+            Some compressors (e.g., Brotli <xref target="BROTLI"/> and Zstandard  <xref target="ZSTD"/><!-- section="5" -->) accept dictionaries that conform to a specific and defined format. In these cases, the dictionary data can consist of multiple components, each of which is used in different ways.
+          </t>
+          <t>
+            <list style="hanging">
+              <t hangText="metadata:">
+                The dictionary may contain metadata that identifies the dictionary. For example, Zstandard dictionaries include a 32-bit integer ID field.
+              </t>
+              <t hangText="statistics:">
+                The dictionary may contain frequency distributions of various kinds of symbols, which the compressor can use to more efficiently encode the corresponding streams instead of using a default frequency distribution.
+              </t>
+              <t hangText="initial values:">
+                For example, Zstandard allows the dictionary to initialize certain parts of the compressor's internal state (in particular, the initial values of Repeated_Offset1, Repeated_Offset2, and Repeated_Offset3) <xref target="ZSTD"/><!-- section="5" -->.
+              </t>
+              <t hangText="instructions:">
+                The dictionary may describe preprocessing or transformation steps to be taken on the input. [TODO: expand]
+              </t>
+              <t hangText="corpus content:">
+                <list style="hanging">
+                  <t hangText="untokenized:">
+                    For LZ77-style compressors <xref target="LZ77"/>, the structured dictionaries may still contain unstructured content for the compressor to make matches against.
+                  </t>
+                  <t hangText="tokenized:">
+                    Alternatively, for LZ78-style compressors <xref target="LZ78"/>, the match content is tokenized (i.e., it consists of a collection of independent strings, serialized in some form).
+                  </t>
+                </list>
+              </t>
+            </list>
+          </t>
+        </section>
+      </section>
+      <section anchor="using-dictionaries" title="Using Dictionaries">
+        <t>
+          In order to use compression dictionaries in a system, it is not only the internals and integration points of the compressor and decompressor whose behavior must change. Dictionaries make compression stateful, and applications that use dictionaries must therefore participate in the whole lifecycle of state management.
+        </t>
+        <section anchor="dictionaries-training" title="Generating Dictionaries">
+          <t>
+            As noted in <xref target="dictionary-contents-unstructured"/>, some compression algorithms can accept arbitrary, unstructured inputs as dictionaries. These unstructured dictionaries do not require an explicit generation step; users can simply repurpose existing messages as dictionaries. This potentially avoids the need to perform additional coordination and communication to distribute purpose-built dictionaries. See for example the Compression Dictionaries for HTTP/2 proposal <xref target="I-D.vkrasnov-h2-compression-dictionaries"/>.
+          </t>
+          <t>
+            Alternatively, the dictionary may be a separate object, purpose-built for the task. Generating such a dictionary may be desirable for a number of reasons, including:
+          </t>
+          <t>
+            <list style="symbols">
+              <t>
+                Building a dictionary is necessary to produce the structure in a structured dictionary.
+              </t>
+              <t>
+                Trained dictionaries generally perform better than using raw content. The training process selects the parts of the sample corpus that are useful for compression and discard the parts that are not, producing a more compact and more effective dictionary.
+              </t>
+              <t>
+                The training process is an opportunity to sanitize the content that ends up being used as a dictionary, potentially enhancing security and privacy (see <xref target="issues-training"/>).
+              </t>
+            </list>
+          </t>
+          <t>
+            In general, an algorithm is run over a corpus of sample messages (such as the COVER algorithm <xref target="COVER"/> in Zstandard), which selects commonly occurring substrings and bundles them together.
+          </t>
+          <t>
+            Any structured metadata (e.g., symbol distribution statistics) can then be calculated. For example, Zstandard then compresses some of the sample messages it was given with the dictionary and aggregates the statistics resulting from those compressions and writes them into the dictionary's header.
+          </t>
+        </section>
+        <section anchor="dictionaries-identifying" title="Identifying Dictionaries">
+          <t>
+            If freedom exists in a system as to which dictionary is to be used for a given message, there must be some way to distinguish which dictionary to use, so that decompressors can use the same one. In practice, this means associating each dictionary with an identifier.
+          </t>
+          <t>
+            Popular methods to do this include:
+          </t>
+          <t>
+            <list style="hanging">
+              <t hangText="Identity ID:">
+                The "identifier" for the dictionary is the dictionary itself. This is not really very popular, since information theory strongly suggests that a compressed message without a dictionary will always be smaller than a message compressed with a dictionary plus the dictionary.
+              </t>
+              <t hangText="Arbitrary IDs:">
+                The scheme associates an arbitrary identifier (e.g., a number or string) with this dictionary. This can have the advantage of being the most compact, but has the disadvantage that it neither describes the content of the dictionary nor where to get it.
+              </t>
+              <t hangText="Content-Derived IDs:">
+                Identifiers that are deterministically derived from the content they identify (such as hashes), when designed well, have the benefit that they can validate the associated dictionary without requiring trusting the dictionary source. (Though they are of course vulnerable to collision attacks.) They have the disadvantage that they do not describe where to source the dictionary. In order to be secure, they may also have to be relatively verbose.
+              </t>
+              <t hangText="Location-Based IDs:">
+                Identifiers of this form (notably, URLs) do not identify the content directly, but rather describe where to get it. They are suitable insofar as that source can be trusted to reliably serve the same content to different participants.
+              </t>
+            </list>
+          </t>
+          <!-- <t>
+            The selection of identifier is itself not without security concerns
+          </t> -->
+          <section anchor="dictionaries-identifying-existing" title="Existing Systems">
+            <t>
+              Existing compression schemes have selected the following identification systems:
+            </t>
+            <t>
+              <list style="hanging">
+                <t hangText="DEFLATE:">
+                  DEFLATE writes an Adler32 checksum of the dictionary into its compressed message header and checks it at decompression-time.
+                </t>
+                <t hangText="Brotli:">
+                  Brotli always implicitly uses a single static dictionary. As such, no identifier is needed or provided <xref target="BROTLI"/>.
+                </t>
+                <t hangText="Shared Brotli:">
+                  Shared Brotli uses either a 256-bit Highwayhash digest of the dictionary or a direct pointer to the dictionary when it is included in the same compressed stream <xref target="I-D.vandevenne-shared-brotli-format"/>.
+                </t>
+                <t hangText="Zstandard:">
+                  Zstandard uses 32-bit integers to identify dictionaries <xref target="ZSTD"/><!-- section="5" -->.
+                </t>
+                <t hangText="SDCH:">
+                  SDCH uses a URL to describe how to fetch a dictionary and then a hash (a 96-bit prefix of the SHA-256 digest of the dictionary) in negotiations <xref target="I-D.lee-sdch-spec"/><!-- section="4.4" -->.
+                </t>
+                <t hangText="CDH2:">
+                  Compression Dictionaries for HTTP/2 uses an 8-bit integer <xref target="I-D.vkrasnov-h2-compression-dictionaries"/>.
+                </t>
+              </list>
+            </t>
+          </section>
+        </section>
+        <section anchor="dictionaries-distribution" title="Distributing Dictionaries">
+          <t>
+            Dictionaries must themselves be made accessible to participants. There are several possible approaches to doing this:
+          </t>
+          <t>
+            <list style="hanging">
+              <t hangText="static:">
+                The protocol defines the set of dictionaries. Protocol implementations can statically include or independently generate these dictionaries. No further distribution mechanism is required.
+              </t>
+              <t hangText="local:">
+                When dictionaries are not specified by the protocol, but are derived locally or provided by the user, no dictionary distribution mechanism is required, although a negotiation mechanism might be.
+              </t>
+              <t hangText="centralized:">
+                The set of dictionaries in use by the system changes over time, coordinated by and available from a central authority.
+              </t>
+              <t hangText="distributed:">
+                The set of dictionaries in use by the system changes over time. Some or all participants can generate and publish dictionaries.
+              </t>
+            </list>
+          </t>
+        </section>
+        <section anchor="dictionaries-selection" title="Selecting Dictionaries">
+          <t>
+            Related to the above, because the same dictionary must be used to compress and decompress a particular message, it is necessary for the compressor and decompressor to come to an understanding as to which dictionary they will use for a given message, presumably based on selecting which dictionary of those available to both the sender and receiver is most suitable. This selection process can take multiple forms:
+          </t>
+          <t>
+            <list style="hanging">
+              <t hangText="implicit:">
+                In situations where the compressor or protocol specifies a single dictionary that is always used (e.g., Brotli <xref target="BROTLI"/>), no particular selection process is required. Use of the compression scheme at all (which may or may not itself be negotiated) is sufficient to identify the dictionary to use.
+              </t>
+              <t hangText="unilateral:">
+                When the set of dictionaries available to the decompressing agent is known to the compressing agent, the compressing agent may unilaterally select a dictionary to use, and include an identification of that dictionary in either the compressed message itself (e.g., Zstandard's Dictionary_ID field in the frame header) or in protocol metadata (e.g., an HTTP response header). This mechanism can be applied in simple situations, such as when the set of dictionaries used by the protocol is fixed and guaranteed to be immediately available to all participants (such as by being included in the implementation's installation). It can also be applied to a more loose definition of availability, if the decompressing agent is known to be capable of retrieving the dictionary based on the provided identifier, even if it doesn't have the dictionary at present.
+              </t>
+              <t hangText="bilateral:">
+                When the set of dictionaries available to each party is not known to the other, additional messages may be required in order for the compressing agent to select a dictionary available to both both parties. In particular, while other negotiation patterns only require a flow of information from the compressor to the decompressor, which matches the flow of the compressed message itself, this mechanism requires communication in both directions.
+              </t>
+            </list>
+          </t>
+        </section>
+        <section anchor="dictionaries-usage" title="Using Dictionaries">
+          <t>
+            Having selected and retrieved a dictionary, it remains to actually present the dictionary to the compressor or decompressor and perform the compression operation.
+          </t>
+          <t>
+            Dictionaries, whether structured or not, are flat byte streams. In order to be used (especially in compression), most implementations require that a preparation step be performed on the content of the dictionary, populating the compressor's internal datastructures.
+          </t>
+          <t>
+            This materialization of the dictionary can sometimes be performed transparently as part of the compression or decompression operation. Alternatively, some compressors allow this materialization step to be performed separately / explicitly. When this capability is used, the work of processing the serialized dictionary into the compressor's internal datastructures only needs to be performed once, even when this materialized dictionary object is used for many compressions or decompressions. This can lead to significant efficiencies.
+          </t>
+        </section>
+        <section anchor="dictionaries-lifetime" title="Deleting Dictionaries">
+          <t>
+            Dictionary compression inherently entangles the lifetimes of different pieces of data. When a dictionary is generated, it collects and incorporates information about the data it was trained on (whether that be diffuse statistical information, small common substrings or tokens, or significant contiguous excerpts of the training data). When that dictionary is used to compress a set of messages, it must be retained by the system for as long as the system desires to be able to decompress any of those messages. The lifetime of information derived from individual messages is thus tied to the lifetime of many messages, or even the whole system. This introduces complexities for systems that wish to minimize or bound the lifetime of individual pieces of data.
+          </t>
+        </section>
+      </section>
+    </section>
+
+    <!--
+      <section anchor="mechanisms" title="Implementation Choices">
+        <t>
+          Systems that use dictionary-based compression have a number of choices to make about how they... Coordination is required between the compressing agent and decompressing agent beyond simply passing the
+        </t>
+      </section>
+    -->
+
+    <section anchor="issues" title="Risks">
+      <t>
+        These subsections each describe a class of security issues that have been raised concerning dictionary-based compression and the surrounding protocol mechanisms. Where possible and known, mitigations are described.
+      </t>
+      <section anchor="issues-content-recovery" title="Revealing Message Content">
+        <t>
+          This section discusses attacks that use dictionary compression to recover content in the message.
+        </t>
+        <!-- <t>
+          Attackers vary in how the can control the agents' behavior and how they can observe the results of that behavior (see <xref target="threat-model"/>). [TODO: expand]
+        </t> -->
+        <section anchor="issues-content-recovery-dict-selection" title="By Observing Which Dictionary is Used">
+          <t>
+            Because dictionaries' effectiveness improves the more that they target a specific type of data, a protocol may want to use multiple dictionaries, each targeting a subclass of the system's traffic. Alternatively, a participant may always avoid using a dictionary in certain scenarios, such as when reporting an error. When this is the case, the use of a particular dictionary or not for a message implies that the message belongs to the corresponding subclass of traffic.
+          </t>
+          <t>
+            The metadata identifying which dictionary was used to compress a message should therefore be protected to the same extent that the message content is protected. (Similarly, the choice of dictionary and any data exchanged in that selection process may reveal other information about the sender and receiver, independent of the content of the specific message being handled, which is discussed in <xref target="issues-tracking-negotiation"/>.)
+          </t>
+          <t>
+            This information may itself be inferred from other signals, and therefore serve as a stepping stone connecting those signals to conclusions about message content.
+          </t>
+          <t>
+            <list style="hanging">
+              <t hangText="Message Size:">
+                Observations of message sizes, especially headers or connection negotiations (also discussed in <xref target="issues-content-recovery-msg-size"/>), can indicate whether a dictionary was used, or even perhaps which dictionary was used.
+              </t>
+              <t hangText="Timing:">
+                Compression with and without a dictionary may take observably different amounts of time. This is also discussed in <xref target="issues-content-recovery-timing"/>.
+              </t>
+              <t hangText="Dictionary Retrieval:">
+                When dictionaries are retrieved dynamically, another vector for learning this information is simply observing whether a message triggers a fetch for a dictionary, and if so, which dictionary. (This is also discussed in <xref target="issues-tracking-retrieval"/>.)
+
+                Protocols should consider decoupling retrieving dictionaries (especially when doing so is easily observable) from using them. For example, SDCH advertises and retrieves dictionaries independently of using them <xref target="I-D.lee-sdch-spec"/>.
+              </t>
+            </list>
+          </t>
+        </section>
+        <section anchor="issues-content-recovery-msg-size" title="By Observing Message Size">
+          <t>
+            By manipulating a portion of the message and observing the overall size of the compressed message, the attacker can recover information about the portions of the message not under its control <xref target="BREACH"/> <xref target="CRIME"/> <xref target="HEIST"/>. Given that dictionary-based compression is an extension of dictionary-less compression, it is certainly also vulnerable to this attack.
+          </t>
+          <t>
+            In particular, the dictionary itself can be used in this sort of attack, to the extent that its contents are attacker-controlled. Note that the ability to control which dictionary is used may indirectly give an attacker the effective ability to modify the contents of the dictionary.
+          </t>
+          <t>
+            Protocol designers should therefore prevent parties that will not have access to the message content from being able to influence the dictionary used to compress the message.
+          </t>
+          <t>
+            In settings where the dictionary that is used is derived from previous traffic, especially if previous traffic is directly used as a dictionary, the problem of ensuring that private data and attacker-controlled data grows in complexity. In such a scheme, the attacker may also be able to exercise more control over the content of the dictionary if they can influence the order in which messages are exchanged. Protocols of this sort may wish to place strong controls on the kinds of messages that can be included in the dictionary. See for example <xref target="I-D.vkrasnov-h2-compression-dictionaries"/><!-- section="4.1" -->.
+          </t>
+          <t>
+            The remaining question is whether the dictionary constitutes a third class of data (fixed, known data), with distinct security properties. That is, even if the dictionary is neither under attacker control nor does it contain private information, can its use still reveal information about the contents of the message under compression.
+          </t>
+          <section anchor="issues-content-recovery-msg-size-padding" title="Mitigating with Padding">
+            <t>
+              One possible mitigation of the compressed message size oracle is to add padding to messages, either at the compression level or at the transport layer (e.g., <xref target="I-D.pironti-tls-length-hiding"/>). Even simple padding schemes can significantly inflate the cost of mounting such an attack, if not mitigate it completely.
+            </t>
+          </section>
+          <section anchor="issues-content-recovery-msg-size-separating" title="Mitigating by Separating Content">
+            <t>
+              Another possible strategy to mitigate this attack is to avoid letting attacker-controlled data be matched against private data. This can be accomplished by avoiding compressing one or the other, or by compressing them independently of each other. See, e.g., <xref target="CLOUDFLARE-NO-COMPRESS"/>.
+            </t>
+          </section>
+          <section anchor="issues-content-recovery-msg-size-ratelimiting" title="Mitigating by Avoiding Repeated Compressions">
+            <t>
+              A crucial feature of these attacks is that they require the message under attack to be re-compressed many times (proportional to the amount of information being extracted). The attack can therefore be mitigated either by limiting the number of times the same message can be compressed (rate-limiting), or by making sure that it is not the same message that is compressed every time.
+            </t>
+            <t>
+              That is to say, these attacks are most effective when the attacker-controlled data is the only thing that is changing between compressions. Changing or randomizing content (ideally, including the secrets in question) in the message on each compression can make it much harder to extract information.
+            </t>
+          </section>
+        </section>
+        <section anchor="issues-content-recovery-timing" title="By Observing Timing">
+          <t>
+            Timing is another classic side-channel through which information can leak. An attacker could potentially observe the time taken during compression or decompression, and draw conclusions about the contents of a message. As discussed in <xref target="issues-dos-resources-compute-compression"/>, it is possible that a dictionary could affect the efficiency of compression and decompression.
+          </t>
+          <t>
+            In addition, timing can act as a vector for extracting information from another side-channel. As described in the HEIST attack <xref target="HEIST"/>, compression ratio information can be leaked by counting round-trip latencies.
+          </t>
+          <t>
+            Alternatively, while compression and decompression are usually relatively fast and fairly content-insensitive operations, retrieving and initializing a dictionary might be a high-latency operation, and therefore may be identifiable by observing timing. Timing is therefore another potential avenue to observe which dictionary is used, which may in turn reveal information about the message being processed (<xref target="issues-content-recovery-dict-selection"/>).
+          </t>
+        </section>
+        <!-- <section anchor="issues-content-recovery-compressor-state" title="By Observing Compressor State">
+          <t>
+            [TODO: remove? this is irrelevant to dictionaries as best I can tell...]
+          </t>
+          <t>
+            In the pursuit of efficiency, some compression algorithms make use of clever tricks to (re-)initialize their internal datastructures for a new compression. It is theoretically possible that the compression of a message could be subtly influenced by previous compressions that had taken place on the same internal datastructures, and that therefore the choices made in compressing a message might reveal information about previous compressions.
+          </t>
+          <t>
+            Executing an attack in this way would be incredibly impressive and incredibly impractical. At any rate, dictionaries ought to make such an attack harder to mount, not easier.
+          </t>
+        </section> -->
+      </section>
+      <section anchor="issues-content-recovery-dictionary" title="Revealing Dictionary Content">
+        <t>
+          This section investigates the ability to leverage dictionary-based compression to reveal data other than the message content being compressed (i.e., revealing content used as the dictionary). Note that this is only of interest when there are secrets in the dictionary, which violates the common model that is mostly analyzed in this document, in which the dictionary is assumed to be a shared, public resource.
+        </t>
+        <t>
+          In systems with multiple privacy domains, the ability to nominate arbitrary resources in that system as dictionaries poses a risk.
+        </t>
+        <t>
+          Protocol designers and implementors should ensure that compressing and decompressing agents cannot use as dictionaries resources from privacy domains that either agent does not have access to.
+        </t>
+        <t>
+          A corollary is that a transport system that mixes resources from multiple privacy domains into the same compression context through dictionary-based compression should not reveal the compressed representation of messages (or information derived from the compressed representation, such as its size) to other components of the system that are only trusted in a particular privacy domain.
+        </t>
+        <section anchor="issues-content-recovery-dictionary-msg-size" title="By Observing Message Size">
+          <t>
+            Analogously to <xref target="issues-content-recovery-msg-size"/>, an attacker can exploit knowledge about the contents of a message and its compressed size to draw conclusions about the contents of the dictionary.
+          </t>
+        </section>
+        <section anchor="issues-content-recovery-dictionary-compression" title="In Compression">
+          <t>
+            If an attacker can inspect the compressed representation of a message, they may be able to draw conclusions about the contents of the dictionary that was used to compress it. This is especially the case if the attacker knows the original message that was compressed (i.e., a known-plaintext attack) or if the attacker can supply the message to be compressed (i.e., a chosen-plaintext attack), and is helped if the attacker can cause the message to be compressed multiple times while varying some aspect of the compression.
+          </t>
+        </section>
+        <section anchor="issues-content-recovery-dictionary-decompression" title="In Decompression">
+          <t>
+            In compression schemes that support the use of dictionaries, and especially unstructured dictionaries, it is possible to craft compressed messages independent of a dictionary in such a way that, when decompressed with a provided dictionary, the decompressed message that is produced will reveal information about the contents of the dictionary that was not known by the compressor (possibly trivially, by directly reproducing some or all of the dictionary's contents).
+          </t>
+          <t>
+            Consider a protocol that allows a compressing agent to freely identify any other resource in the system as the dictionary for a message. The compressing agent could select as a dictionary some resource to which the decompressing agent has access, but to which it does not. Without access to that resource, it could nonetheless generate a compressed message the effect of which would be to reproduce that resource in part or in its entirety. This message, decompressed by the target, would cause a resource in the compressing agent's trust domain to appear to have the contents of a resource it does not itself have access to.
+          </t>
+          <t>
+            This could cause the decompressing agent to take some action that the compressing agent would not otherwise have had the authority to initiate. Alternatively, with some additional mechanism, the compressing agent could then cause the decompressing agent to reveal the uncompressed message (i.e., the selected third-party resource) back to the compressing agent.
+          </t>
+        </section>
+        <!-- <t>
+          E.g., CORS/SOP/CSP. [TODO: need references and expansions for these]
+        </t> -->
+      </section>
+      <section anchor="issues-content-manipulation" title="Manipulating Message Content">
+        <t>
+          When the decompressing agent uses a different dictionary to decompress a message than was used to compress the message (which is possible due to confusion on the part of either the compressing or decompressing agent), the reconstituted message produced by decompression may differ from the original message the compressing agent intended.
+        </t>
+        <t>
+          An attacker that can induce this situation can therefore use dictionary compression to manipulate the perceived content of messages, even when they cannot directly manipulate the contents of the messages themselves.
+        </t>
+        <t>
+          A particular implication of this is that a compressed message may have multiple interpretations. In one context (with one dictionary), the message can be constructed so as to appear benign or to pass a validation or authentication step when decompressed. Later, if a different component or agent can be induced to decompress the same message with a different dictionary, the reconstructed message may be completely different.
+        </t>
+        <t>
+          A general mitigation against this attack is to specify mechanisms to validate the integrity of the message. In particular, it may be desirable to validate the ultimate, uncompressed message, rather than validating the various components that the decompressing agent relies on to reconstitute the uncompressed message--the compressed message, the metadata identifying the dictionary, the associated dictionary contents, etc. (However, this has its own problems <xref target="ENCRYPT-THEN-AUTHENTICATE"/>.)
+        </t>
+        <section anchor="issues-content-manipulation-message-contents" title="By Manipulating Message Content">
+          <t>
+            The degenerate version of this attack is to manipulate the uncompressed message by directly manipulating the compressed representation of the message. In such a scenario, the presence or absence of a dictionary is irrelevant. In most cases, this attack is defended against by some scheme that protects the integrity of the compressed message.
+          </t>
+          <t>
+            However, it is useful to point this attack out, as the other attacks in this space aim to achieve the same result indirectly, and may do so by exploiting protocols which protect the integrity of the compressed message, but perhaps not its metadata describing which dictionary to use nor the contents of that dictionary, such as might arise particularly if dictionary-based compression is an extension to an existing protocol.
+          </t>
+        </section>
+        <section anchor="issues-content-manipulation-dictionary-contents" title="By Manipulating Dictionary Content">
+          <t>
+            One possible avenue for this kind of attack is to cause the compressing agent and decompressing agent to have differing views of the same dictionary (whether by manipulating a participant's local copy or by causing a fetch to return different results for different users or otherwise).
+          </t>
+          <t>
+            Protocol designers should therefore take care to protect the integrity of dictionaries. Two broad strategies exist to do so.
+          </t>
+          <section anchor="issues-content-manipulation-validating-dictionary-contents" title="Mitigating by Validating Dictionary Contents">
+            <t>
+              In the first, the identifier for the dictionary may itself be used to validate the contents that are retrieved, if the identifier scheme includes a cryptographically secure digest of the identified dictionary's contents (see <xref target="dictionaries-identifying"/>). Alternatively, even if the identifier itself does not provide for , designers should specify other mechanisms to ensure the integrity and correctness of dictionaries (signatures, checksums, etc.). See for example schemes like Subresource Integrity <xref target="SRI"/>.
+            </t>
+          </section>
+          <section anchor="issues-content-manipulation-validating-dictionary-sources" title="Mitigating by Validating Dictionary Sources">
+            <t>
+              Alternatively, participants can rely on a secure chain of custody from a trusted source. ... [TODO]
+            </t>
+            <t>
+              In practice, it is probably advisable to implement both mitigations in some form.
+            </t>
+          </section>
+        </section>
+        <section anchor="issues-content-manipulation-dictionary-identifiers" title="By Manipulating Dictionary Identifiers">
+          <t>
+            Another similar attack is to cause the different agents to have differing views of which dictionary to use. That is, even if the integrities of compressed messages and dictionary contents are protected, if the association between one and the other can be manipulated, the same effect can be achieved.
+          </t>
+        </section>
+      </section>
+      <section anchor="issues-content-obfuscation" title="Obfuscating Message Content">
+        <t>
+          This section discusses attacks that obfuscate a malicious response's content through the use of dictionary-based compression.
+        </t>
+        <section anchor="issues-content-obfuscation-from-intermediaries" title="From Intermediaries">
+          <t>
+            Various internet protocols exchange messages through intermediaries which inspect or modify the traffic as it passes by (proxies, caches, firewalls, etc.), sometimes for reasons that include security. If the compressing and decompressing agents on a connection use a dictionary to compress the messages they exchange, and the intermediaries between them are not themselves capable of processing messages compressed this way, the intermediaries may be prevented from being able to inspect the traffic, which may harm their ability to detect and filter malicious traffic.
+          </t>
+          <t>
+            In practice, the relevance of this concern is questionable. Intermediaries of this form <xref target="PERVASIVE-MONITORING"/> can be more harmful than they are beneficial to the security of participants and their traffic. Many protocols are moving towards end-to-end encrypted models that preclude intermediaries from interacting with messages in this way.
+          </t>
+          <!-- <t>
+            These intermediaries might not support the use of dictionary-based compression, for any of several reasons, including that their deployments pre-date protocol support for dictionaries, or they choose not to implement support due to resource constraints.
+          </t> -->
+          <!-- <t>
+            An attacker could then use dictionary based compression to obfuscate malicious content in such a way that a simple inspection of the compressed message yields no matches with a string blacklist.
+          </t> -->
+          <t>
+            Nonetheless, designers of protocols that involve intermediaries that might not support dictionary based compression should give those intermediaries the ability to downgrade the message exchange to not use dictionaries. Intermediaries which inspect messages in the course of their business should either implement the dictionary based compression scheme in question or downgrade the message exchange to avoid its use.
+          </t>
+        </section>
+        <section anchor="issues-content-obfuscation-multiple-representations" title="Multiple Representations">
+          <t>
+            Although the majority (if not the entirety) of compression schemes do not guarantee determinism in compression, many implementations are deterministic in practice (under fixed parameters). Experience has demonstrated that this state of affairs sometimes entices implementors into confusing equality-of-message comparison with equality-of-representation comparison. Representing the same message in a new way can therefore violate assumptions and potentially be used as a vector for exploitation. Dictionaries potentially contribute to this issue, by introducing a new vector for non-determinacy in the compressed representation of a message.
+          </t>
+          <t>
+            Users of compression should therefore avoid assumptions that a message will always be transformed into the same compressed representation.
+          </t>
+        </section>
+      </section>
+      <section anchor="issues-tracking" title="Tracking Users">
+        <t>
+          This section discusses attacks that identify users through their negotiation and use of dictionaries.
+        </t>
+        <t>
+          Like any other protocol extension or option, the use or advertisement of dictionaries, may allow observers to distinguish participants that do and do not support the feature.
+        </t>
+        <section anchor="issues-tracking-negotiation" title="Through Dictionary Negotiation">
+          <t>
+            In systems which distribute dictionaries dynamically, a participant or observer may be able to learn about the past actions of other participants by observing the dictionaries they advertise or select.
+          </t>
+          <t>
+            For example, if a user exchanged messages with some site (www.mybank.com), and in doing so acquired dictionaries published by that operator, and then sometime later negotiated a connection with some other site (www.curiousaboutyou.com), in which the user advertised the dictionaries in their possession, the second operator could reasonably conclude that the user had a bank account at MyBank.
+          </t>
+          <t>
+            Designers of protocols that use dynamically distributed and negotiated dictionaries should therefore take care that dictionaries distributed in one privacy domain are not advertised or used in others without reason.
+          </t>
+        </section>
+        <section anchor="issues-tracking-retrieval" title="Through Dictionary Retrieval">
+          <t>
+            The distributor of a dictionary may also be able track the propagation of traffic amongst participants as it receives requests for a particular dictionary, especially if it can collude with the party that generated that message to use a unique dictionary identifier.
+          </t>
+          <t>
+            Dictionaries that are dynamically fetched should therefore be fetched from the same privacy domain they are used in.
+          </t>
+        </section>
+      </section>
+      <section anchor="issues-denial-of-service" title="Denial of Service">
+        <t>
+          Because dictionary-based compression introduces additional dependencies to the processes of generating and interpreting messages, an attacker that cause those dependencies to be unavailable can potentially cause participants to fail to process messages.
+        </t>
+        <t>
+          Protocols that use dictionary-based compression, especially when the dictionaries are retrieved in ways that could fail, should be prepared to gracefully degrade when those fetches fail. Designers may consider whether messages should only be compressed with dictionaries known to already be in the possession of the recipients.
+        </t>
+      </section>
+      <section anchor="issues-resource-exhaustion" title="Resource Exhaustion">
+        <t>
+          This section discusses attacks that use dictionaries and dictionary-based compression to induce failures through the exhaustion of various resources.
+        </t>
+        <t>
+          Aside from more specific concerns and corresponding protections discussed in the following sections, implementors should take care to apply at least the same resource usage constraints to dictionaries that they do to the other traffic they handle. Stronger constraints may be warranted, in fact, since the goal of dictionaries is to lower total resource consumption.
+        </t>
+        <section anchor="issues-dos-resources" title="Resources">
+          <section anchor="issues-dos-resources-network" title="Bandwidth">
+            <t>
+              Attacks of this form cause the target to consume their network resources, resulting in expense and degradation of service.
+            </t>
+            <section anchor="issues-dos-resources-network-msg-size" title="Messages">
+              <t>
+                If dictionaries can be used to make the compressed representation of messages artificially large, it may be possible to cause normal traffic to consume disproportionately large bandwidth. With existing dictionary schemes, this is unlikely.
+              </t>
+              <t>
+                The reverse is also potentially dangerous, though. Systems that are accustomed to using dictionary-based compression (and whose resources are allocated according to the efficiencies achieved thereby) may be vulnerable to resource exhaustion when subjected to downgrade attacks. If an attacker can force the system to fall back to not using dictionaries, or to using bad dictionaries, or to not using compression at all, the system may exceed its allocated network resources.
+              </t>
+            </section>
+            <section anchor="issues-dos-resources-network-dicts" title="Dictionaries">
+              <t>
+                In protocols in which dictionaries are distributed dynamically, it may be possible to cause a target to repeatedly attempt to fetch dictionaries, whether by causing dictionary fetches to fail, triggering retries, or by causing the target to use many new dictionaries that it must then load.
+              </t>
+              <t>
+                Since dictionaries can be quite large relative to the messages they are used to compress, this could potentially be an effective amplification attack.
+              </t>
+            </section>
+          </section>
+          <section anchor="issues-dos-resources-storage" title="Storage">
+            <t>
+              Attacks of this form target the storage resources of a participant (any of main memory, cache, disk space, etc.).
+            </t>
+            <section anchor="issues-dos-resources-storage-msg-size" title="Message Size">
+              <t>
+                The same concerns apply here as in <xref target="issues-dos-resources-network-msg-size"/>.
+              </t>
+              <t>
+                Additionally, if dictionaries can be used to make the compressed representation of a message extremely small relative to the its uncompressed size, they may play a role in enabling a "zip bomb" type attack, in which a specially crafted, small (and therefore cheap to send) message causes the recipient to consume a huge amount of storage space after decompression.
+              </t>
+              <t>
+                Implementors should therefore apply storage quotas to messages based on the size of the representation in which they will actually be stored. Implementors may also wish to consider rejecting messages whose compressed representation is significantly larger than the message represented.
+              </t>
+            </section>
+            <section anchor="issues-dos-resources-storage-duplication" title="Message Duplication">
+              <t>
+                Obviously, flooding a target with messages is an easy way exhaust that participant's resources. Using a dictionary does not natively affect that brute force strategy. However, simple mitigations to this sort of attack sometimes leave chinks in systems' armor, which dictionaries might play a role in exploiting.
+              </t>
+              <t>
+                For example, if an attacker can cause a participant to receive and store a single logical message more than once, with different metadata (such as the dictionary used) or with a different compressed representation (as a result of using a different dictionary), the participant may not be able or willing to deduplicate the message. For example, an HTTP Cache may be forced to store the same resource multiple times, compressed with different dictionaries, if the choice of dictionary is part of the cache's secondary key <xref target="HTTP-CACHING"/><!-- section="4.1" -->.
+              </t>
+            </section>
+            <section anchor="issues-dos-resources-storage-dicts" title="Dictionaries">
+              <t>
+                Another possible avenue of attack would be to cause a participant to consume space by storing the dictionaries themselves. The effectiveness of attacks of this form are driven by the product of (1) the number of dictionaries stored, (2) their size, and (3) how long they are retained.
+              </t>
+              <t>
+                Dictionaries may themselves be fairly large. But one thing to note in particular is that, when in use, the space consumed by a dictionary may be significantly greater than its raw size. In order to be used in compression or decompression (but particularly in compression), the dictionary contents must be loaded into the compressor's internal datastructures. This can be done at compression-time, for every compression, using the datastructures already allocated for that compression.
+              </t>
+              <t>
+                Alternatively, some compression algorithms allow the user to do this preparation step separately, producing a materialized representation of the dictionary in memory that can be reused across a number of compression operations (e.g., a ZSTD_CDict). While this avoids duplicated work (processing the dictionary for each compression), applications which cache these materialized dictionaries can accidentally consume a lot of memory. In addition to the factors mentioned above that control the total size of stored dictionaries, the expansion factor as those dictionaries are materialized is controlled by the compression settings (and potentially instructions in the dictionary).
+              </t>
+              <t>
+                Applications that allow other participants to influence the contents, number, size, retention period, or compression settings of dictionaries should take care to constrain the total at rest and in-memory footprints of those dictionaries.
+              </t>
+            </section>
+          </section>
+          <section anchor="issues-dos-resources-compute" title="Computation">
+            <t>
+              Attacks of this form target the computational resources (and by extension, the time and energy) of a participant in the protocol.
+            </t>
+            <section anchor="issues-dos-resources-compute-compression" title="Using a Dictionary">
+              <t>
+                For existing compressors that support dictionaries, compression and decompression with a dictionary is usually faster than without one.
+              </t>
+              <t>
+                However, as the kinds of information captured in dictionaries grows, as described in <xref target="dictionary-contents-structured"/>, dictionaries may come to include instructions that significantly influence the speed of the compressor. For example, dictionaries might specify a particularly laborious transformation to be performed on the input. Or they might specify internal compression parameters, which might instruct the compressor to do huge amounts of work during compression.
+              </t>
+              <t>
+                If dictionary-based compressions systems evolve to include these sorts of features, care should be taken to avoid allowing dictionaries from untrusted sources to influence compression behavior or parameters. Note: this is not a concern for existing dictionaries.
+              </t>
+              <t>
+                Analogously, care should be taken to avoid allowing dictionaries to influence decompression performance.
+              </t>
+            </section>
+            <section anchor="issues-dos-resources-compute-training" title="Generating Dictionaries">
+              <t>
+                Training a dictionary, depending on the methodology, can be a very expensive computation (building an optimal dictionary is NP-hard). Designers of protocols that involve creating new dictionaries on the fly should constrain either or both of (1) who can cause a participant to train a new dictionary and (2) the computational cost of training a new dictionary (by selecting a fast algorithm or by limiting the amount of data over which the algorithm is run).
+              </t>
+            </section>
+          </section>
+        </section>
+        <section anchor="issues-dos-targets" title="Targets">
+          <t>
+            In addition to the immediate compressing and decompressing agents, the mechanisms surrounding dictionary-based compression may allow for the targeting of other agents.
+          </t>
+          <!--
+          <section anchor="issues-dos-targets-compressor" title="The Compressing Agent">
+            <t>
+              [TODO]
+            </t>
+          </section>
+          <section anchor="issues-dos-targets-decompressor" title="The Decompressing Agent">
+            <t>
+              [TODO]
+            </t>
+          </section>
+          -->
+          <section anchor="issues-dos-targets-intermediary" title="An Intermediary">
+            <t>
+              Insofar as intermediaries in internet protocols are often responsible for handling a much higher volume of traffic in a much lighter-weight way than protocol endpoints, any additional per-message or per-connection burden has the potential to significantly increase the workload of the intermediary. Retrieving, caching, and processing dictionaries, especially when the set of dictionaries is unbounded, is potentially untenable for intermediaries of that type.
+            </t>
+          </section>
+          <section anchor="issues-dos-targets-third-party" title="A Third Party">
+            <t>
+              The mechanisms surrounding dictionary-based compression potentially also enable attacks against third parties, including parties with whom the attacker cannot exchange messages directly.
+            </t>
+            <t>
+              If a recipient can be induced to relay messages to a third-party, or to generate new messages directed at a third-party, a third party can become the effective recipient of dictionary-compressed traffic. If the dictionaries used to compress these messages are hard or slow to load (or even non-existent), the work of handling these messages could be significant. This is especially a risk when decompression of the message is required before it can be evaluated against an access-control policy or otherwise distinguished from legitimate traffic.
+            </t>
+            <t>
+              Protocol designers should therefore consider carefully the risks of using dictionary-based compression on (the parts of) messages that are used for authentication.
+            </t>
+            <t>
+              Another possible attack, when dictionaries are distributed dynamically, arises from the ability for compressed messages to trigger the retrieval of a dictionary from a third party. This is especially a risk when the source for a dictionary can be arbitrarily specified (as, for example, a URL).
+            </t>
+            <t>
+              These approaches potentially allow an attacker to amplify their efforts and turn their attack into a distributed one.
+            </t>
+            <t>
+              Protocol designers should consider how the source for the retrieval of a dictionary is derived, who can influence that derivation, and whether it should be constrained to preclude nominating a third party.
+            </t>
+            <t>
+              Protocol designers and implementors who relay messages should also consider whether those messages should be relayed compressed with the same dictionary, or whether dictionary selection and negotiation should occur for each hop in the path of a message.
+            </t>
+          </section>
+        </section>
+      </section>
+      <section anchor="issues-training" title="Generating Dictionaries">
+        <t>
+          This section discusses the potential for inadvertent leakage of private information in the creation of dictionaries.
+        </t>
+        <t>
+          As described in <xref target="dictionaries-training"/>, dictionaries are commonly generated by an algorithm run over a corpus sampled from the application's traffic. For systems which wish to publish dictionaries publicly (or, at any rate, with less strict access controls than the traffic on which they are trained), it is important to prevent the leakage of private information in the creation of dictionaries.
+        </t>
+        <t>
+          The output of this training process, the dictionary, as described in <xref target="dictionary-contents"/>, may be composed of several different kinds of data. Some of these pieces, like statistical summaries around symbol frequencies, are unlikely to represent vectors for leaking useful information about the corpus they were trained on. Other components, however, directly represent substrings found in the input corpus.
+        </t>
+        <t>
+          Protocol designers, implementors, and participants that construct their own dictionaries should take care to do so in a way that does not reproduce private data in the produced dictionaries' contents.
+        </t>
+        <section anchor="issues-training-samples" title="Handling Samples">
+          <t>
+            Since dictionaries are generally produced from a collection of sample data, implementing a dictionary training capability may require storing or otherwise handling message traffic in ways it would otherwise not. This in itself can create an attack surface, for example if secrets that would normally exist only in transit or in memory are persisted or passed to other systems.
+          </t>
+          <t>
+            Care should be taken by implementors to protect the security of messages that are selected as samples for future use in dictionary training. Protections should be implemented both at rest and in transit, including retention limits, so as to limit the window of compromise.
+          </t>
+        </section>
+        <section anchor="issues-training-tagging" title="Tagging Mitigations">
+          <t>
+            One strategy for ensuring that private data does not appear in dictionaries is to avoid presenting private data to the training algorithm at all. This sanitization of the training samples can be accomplished either by removing just the specific parts of samples that are private or by entirely removing samples that contain any private data in them.
+          </t>
+          <t>
+            This discrimination of private and public content can rely on being able to identify private information on sight (e.g., <xref target="CLOUDFLARE-NO-COMPRESS"/>).
+          </t>
+          <t>
+            Alternatively, the trainer can rely on explicit signals, provided alongside the messages, to perform that discrimination.
+          </t>
+        </section>
+        <section anchor="issues-training-probabilistic" title="Probabilistic Mitigations">
+          <t>
+            Another strategy relies on a statistical approach for the identification and removal of private information.
+          </t>
+          <t>
+            In building the dictionary's contents, the goal of the dictionary training algorithm is to collect the set of strings that most effectively improve the compression ratio of messages in the corpus. This goal is best served by including strings that appear frequently in the sample corpus and rejecting strings that appear rarely.
+          </t>
+          <t>
+            In a loose way, it is reasonable to expect that commonly occurring substrings are less private, and rarely occurring substrings may be more private. So the dictionary trainer's interests are broadly aligned with this goal of not including private information in the dictionary.
+          </t>
+          <t>
+            While existing public dictionary training algorithms largely do not include specific protections or offer hard guarantees to prevent the inclusion of private data in their output, there is ongoing research in this area. Future algorithms may be able to provide confidence that private data (that is not somehow overrepresented in the training corpus) will be filtered out of the produced dictionary.
+          </t>
+        </section>
+      </section>
+      <section anchor="issues-complexity" title="Complexity">
+        <t>
+          Complexity is ever the enemy of security. It is unavoidably the case that dictionary-based compression is more complicated than stateless compression.
+        </t>
+      </section>
+    </section>
+
+    <section anchor="conclusions" title="Conclusions">
+      <t>
+        This document attempts to analyze risks and responses at the intersection of several widely varying factors--the protocol, the environment, the threat model--and its conclusions are necessarily situational.
+      </t>
+      <t>
+        From that space of configurations, some broad conclusions can nonetheless be drawn. Much of the complexity and risk in implementing dictionary-based compression comes from its surrounding apparatus: creating dictionaries, handling them, distributing them, storing them, identifying them, and so on. A significant distinction can therefore be drawn between systems that have to grapple with those challenges versus those that don't.
+      </t>
+      <t>
+        [TODO]
+      </t>
+      <!--
+      <section anchor="conclusions-static-dicts" title="Static Dictionary Systems">
+          <t>
+            [TODO]
+          </t>
+          <t>
+            Properties:
+          </t>
+          <t>
+            <list style="symbols">
+              <t>
+                The protocol defines a fixed set of dictionaries.
+              </t>
+            </list>
+          </t>
+      </section>
+      <section anchor="conclusions-dynamic-dicts" title="Dynamic Dictionary Systems">
+          <t>
+            [TODO]
+          </t>
+      </section>
+      -->
+    </section>
+
+    <section anchor="iana" title="IANA Considerations">
+      <t>This document includes no actions for IANA.</t>
+      <t>[RFC Editor: Please remove this section before publication.]</t>
+    </section>
+
+    <section anchor="security" title="Security Considerations">
+      <t>
+        This document enumerates known security considerations about a space that is under development. The list of issues discussed above may not be exhaustive, but it is hopefully complete enough to aid in the design and implementation of future systems and protocols.
+      </t>
+    </section>
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <reference anchor="DEFLATE" target="https://www.rfc-editor.org/info/rfc1951">
+        <front>
+          <title>DEFLATE Compressed Data Format Specification version 1.3</title>
+          <author initials="P." surname="Deutsch" fullname="L. Peter Deutsch"></author>
+          <date year="1996" month="May"/>
+          <abstract>
+            <t>
+              This specification defines a lossless compressed data format that compresses data using a combination of the LZ77 algorithm and Huffman coding, with efficiency comparable to the best currently available general-purpose compression methods. This memo provides information for the Internet community. This memo does not specify an Internet standard of any kind.
+            </t>
+          </abstract>
+        </front>
+        <seriesInfo name="RFC" value="1951"/>
+        <seriesInfo name="DOI" value="10.17487/RFC1951"/>
+      </reference>
+      <!--
+        <reference anchor="RFC1952" target="https://www.rfc-editor.org/info/rfc1952">
+          <front>
+            <title>GZIP file format specification version 4.3</title>
+            <author initials="P." surname="Deutsch" fullname="L. Peter Deutsch"></author>
+            <date year="1996" month="May"/>
+            <abstract>
+              <t>
+                This specification defines a lossless compressed data format that is compatible with the widely used GZIP utility. This memo provides information for the Internet community. This memo does not specify an Internet standard of any kind.
+              </t>
+            </abstract>
+          </front>
+          <seriesInfo name="RFC" value="1952"/>
+          <seriesInfo name="DOI" value="10.17487/RFC1952"/>
+        </reference>
+      -->
+      <!-- <reference anchor="RFC2119" target="https://www.rfc-editor.org/info/rfc2119">
+        <front>
+          <title>Key words for use in RFCs to Indicate Requirement Levels</title>
+          <author initials="S." surname="Bradner" fullname="Scott Bradner">
+            <organization/>
+          </author>
+          <date year="1997" month="March"/>
+          <abstract>
+            <t>
+              In many standards track documents several words are used to signify the requirements in the specification. These words are often capitalized. This document defines these words as they should be interpreted in IETF documents. This document specifies an Internet Best Current Practices for the Internet Community, and requests discussion and suggestions for improvements.
+            </t>
+          </abstract>
+        </front>
+        <seriesInfo name="BCP" value="14"/>
+        <seriesInfo name="RFC" value="2119"/>
+        <seriesInfo name="DOI" value="10.17487/RFC2119"/>
+      </reference> -->
+      <reference anchor="BROTLI" target="https://www.rfc-editor.org/info/rfc7932">
+        <front>
+          <title>Brotli Compressed Data Format</title>
+          <author initials="J." surname="Alakuijala" fullname="Jyrki Alakuijala">
+            <organization>Google, Inc.</organization>
+          </author>
+          <author initials="Z." surname="Szabadka" fullname="Zoltan Szabadka">
+            <organization>Google, Inc.</organization>
+          </author>
+          <date year="2016" month="July"/>
+          <abstract>
+            <t>
+              This specification defines a lossless compressed data format that compresses data using a combination of the LZ77 algorithm and Huffman coding, with efficiency comparable to the best currently available general-purpose compression methods.
+            </t>
+          </abstract>
+        </front>
+        <seriesInfo name="RFC" value="7932"/>
+        <seriesInfo name="DOI" value="10.17487/RFC7932"/>
+      </reference>
+      <!-- <reference anchor="RFC8174" target="https://www.rfc-editor.org/info/rfc8174">
+        <front>
+          <title>
+            Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words
+          </title>
+          <author initials="B." surname="Leiba" fullname="B. Leiba">
+            <organization/>
+          </author>
+          <date year="2017" month="May"/>
+          <abstract>
+            <t>
+              RFC 2119 specifies common key words that may be used in protocol specifications. This document aims to reduce the ambiguity by clarifying that only UPPERCASE usage of the key words have the defined special meanings.
+            </t>
+          </abstract>
+        </front>
+        <seriesInfo name="BCP" value="14"/>
+        <seriesInfo name="RFC" value="8174"/>
+        <seriesInfo name="DOI" value="10.17487/RFC8174"/>
+      </reference> -->
+      <reference anchor="ZSTD" target="https://www.rfc-editor.org/info/rfc8478">
+        <front>
+          <title>Zstandard Compression and the application/zstd Media Type</title>
+          <author initials="Y." surname="Collet" fullname="Y. Collet">
+            <organization>Facebook, Inc.</organization>
+          </author>
+          <author initials="M." surname="Kucherawy" fullname="M. Kucherawy" role="editor">
+            <organization>Facebook, Inc.</organization>
+          </author>
+          <date year="2018" month="October"/>
+          <abstract>
+            <t>
+              Zstandard, or "zstd" (pronounced "zee standard"), is a data compression mechanism. This document describes the mechanism and registers a media type and content encoding to be used when transporting zstd-compressed content via Multipurpose Internet Mail Extensions (MIME).
+            </t>
+            <t>
+              Despite use of the word "standard" as part of its name, readers are advised that this document is not an Internet Standards Track specification; it is being published for informational purposes only.
+            </t>
+          </abstract>
+        </front>
+        <seriesInfo name="RFC" value="8478"/>
+        <seriesInfo name="DOI" value="10.17487/RFC8478"/>
+      </reference>
+    </references>
+
+    <references title="Other Examples of Dictionary-Like Compression">
+      <reference anchor="I-D.vkrasnov-h2-compression-dictionaries">
+        <front>
+          <title>Compression Dictionaries for HTTP/2</title>
+          <author initials="V." surname="Krasnov" fullname="Vlad Krasnov">
+            <organization>Cloudflare, Inc.</organization>
+          </author>
+          <author initials="Y." surname="Weiss" fullname="Yoav Weiss">
+            <organization>Akamai Technologies, Inc.</organization>
+          </author>
+          <date year="2018"/>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-vkrasnov-h2-compression-dictionaries-03"/>
+      </reference>
+      <reference anchor="I-D.reschke-http-oob-encoding">
+        <front>
+          <title>'Out-Of-Band' Content Coding for HTTP</title>
+          <author initials="J." surname="Reschke" fullname="Julian Reschke"></author>
+          <author initials="S." surname="Loreto" fullname="Salvatore Loreto"></author>
+          <date year="2017"/>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-reschke-http-oob-encoding-12"/>
+      </reference>
+      <reference anchor="I-D.ietf-quic-qpack">
+        <front>
+          <title>QPACK: Header Compression for HTTP/3</title>
+          <author initials="C." surname="Krasic" fullname="Charles Krasic"></author>
+          <author initials="M." surname="Bishop" fullname="Mike Bishop"></author>
+          <author initials="A." surname="Frindell" fullname="Alan Frindell" role="editor"></author>
+          <date year="2019"/>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-ietf-quic-qpack-10"/>
+      </reference>
+      <reference anchor="I-D.vandevenne-shared-brotli-format">
+        <front>
+          <title>Shared Brotli Compressed Data Format</title>
+          <author initials="J." surname="Alakuijala" fullname="Jyrki Alakuijala">
+            <organization>Google, Inc.</organization>
+          </author>
+          <author initials="T." surname="Duong" fullname="Thai Duong">
+            <organization>Google, Inc.</organization>
+          </author>
+          <author initials="E." surname="Kliuchnikov" fullname="Evgenii Kliuchnikov">
+            <organization>Google, Inc.</organization>
+          </author>
+          <author initials="R." surname="Obryk" fullname="Robert Obryk">
+            <organization>Google, Inc.</organization>
+          </author>
+          <author initials="Z." surname="Szabadka" fullname="Zoltan Szabadka">
+            <organization>Google, Inc.</organization>
+          </author>
+          <author initials="L." surname="Vandevenne" fullname="Lode Vandevenne" role="editor">
+            <organization>Google, Inc.</organization>
+          </author>
+          <date year="2019" month="August" day="21"/>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-vandevenne-shared-brotli-format-04"/>
+      </reference>
+      <reference anchor="I-D.lee-sdch-spec">
+        <front>
+          <title>A Proposal for Shared Dictionary Compression over HTTP</title>
+          <author initials="J." surname="Butler" fullname="Jon Butler">
+            <organization>Google, Inc.</organization>
+          </author>
+          <author initials="W." surname="Lee" fullname="Wei-Hsin Lee">
+            <organization>Google, Inc.</organization>
+          </author>
+          <author initials="B." surname="McQuade" fullname="Bryan McQuade">
+            <organization>Google, Inc.</organization>
+          </author>
+          <author initials="K." surname="Mixter" fullname="Kenneth Mixter">
+            <organization>Google, Inc.</organization>
+          </author>
+          <date year="2016" month="October"/>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-lee-sdch-spec-00"/>
+      </reference>
+      <reference anchor="HTTP-DELTA-ENCODING" target="https://www.rfc-editor.org/info/rfc3229">
+        <front>
+          <title>Delta encoding in HTTP</title>
+          <author initials="J." surname="Mogul" fullname="J. Mogul"></author>
+          <author initials="B." surname="Krishnamurthy" fullname="B. Krishnamurthy"></author>
+          <author initials="F." surname="Douglis" fullname="F. Douglis"></author>
+          <author initials="A." surname="Feldmann" fullname="A. Feldmann"></author>
+          <author initials="Y." surname="Goland" fullname="Y. Goland"></author>
+          <author initials="A." surname="van Hoff" fullname="A. van Hoff"></author>
+          <author initials="D." surname="Hellerstein" fullname="D. Hellerstein"></author>
+          <date year="2002" month="January"/>
+          <abstract>
+            <t>
+              This document describes how delta encoding can be supported as a compatible extension to HTTP/1.1.
+            </t>
+          </abstract>
+        </front>
+        <seriesInfo name="RFC" value="3229"/>
+        <seriesInfo name="DOI" value="10.17487/RFC3229"/>
+      </reference>
+      <reference anchor="HPACK" target="https://www.rfc-editor.org/info/rfc7541">
+        <front>
+          <title>HPACK: Header Compression for HTTP/2</title>
+          <author initials="R." surname="Peon" fullname="Roberto Peon"></author>
+          <author initials="H." surname="Ruellan" fullname="Herve Ruellan"></author>
+          <date year="2015" month="May"/>
+          <abstract>
+            <t>
+              This specification defines HPACK, a compression format for efficiently representing HTTP header fields, to be used in HTTP/2.
+            </t>
+          </abstract>
+        </front>
+        <seriesInfo name="RFC" value="7541"/>
+        <seriesInfo name="DOI" value="10.17487/RFC7541"/>
+      </reference>
+    </references>
+
+    <references title="Informative References">
+      <reference anchor="BREACH" target="https://breachattack.com/">
+        <front>
+          <title>BREACH: SSL, Gone in 30 Seconds</title>
+          <author initials="A." surname="Prado" fullname="Angelo Prado"></author>
+          <author initials="N." surname="Harris" fullname="Neal Harris"></author>
+          <author initials="Y." surname="Gluck" fullname="Yoel Gluck"></author>
+          <date year="2013"/>
+        </front>
+      </reference>
+      <reference anchor="CLOUDFLARE-NO-COMPRESS" target="https://blog.cloudflare.com/a-solution-to-compression-oracles-on-the-web/">
+        <front>
+          <title>A Solution to Compression Oracles on the Web</title>
+          <author initials="B." surname="Loring" fullname="Blake Loring"></author>
+          <date year="2018" month="March" day="27"/>
+        </front>
+      </reference>
+      <reference anchor="COVER" target="https://doi.org/10.1145/2872427.2883042">
+        <front>
+          <title>Effective Construction of Relative Lempel-Ziv Dictionaries</title>
+          <author initials="K." surname="Liao" fullname="Kewen Liao"></author>
+          <author initials="M." surname="Petri" fullname="Matthias Petri"></author>
+          <author initials="A." surname="Moffat" fullname="Alistair Moffat"></author>
+          <author initials="A." surname="Wirth" fullname="Anthony Wirth"></author>
+          <date year="2016"/>
+        </front>
+        <seriesInfo name="DOI" value="10.1145/2872427.2883042"/>
+      </reference>
+      <reference anchor="CRIME" target="https://www.ekoparty.org/archive/2012/CRIME_ekoparty2012.pdf">
+        <front>
+          <title>Compression Ratio Info-leak Made Easy</title>
+          <author initials="J." surname="Rizzo" fullname="Juliano Rizzo"></author>
+          <author initials="T." surname="Duong" fullname="Thai Duong"></author>
+          <date year="2012"/>
+        </front>
+      </reference>
+      <reference anchor="ENCRYPT-THEN-AUTHENTICATE" target="https://iacr.org/archive/crypto2001/21390309.pdf">
+        <front>
+          <title>The Order of Encryption and Authentication for Protecting Communications (Or: How Secure is SSL?)</title>
+          <author initials="H." surname="Krawczyk" fullname="Hugo Krawczyk"></author>
+          <date year="2001"/>
+        </front>
+      </reference>
+
+      <reference anchor="I-D.arkko-arch-internet-threat-model">
+        <front>
+          <title>Changes in the Internet Threat Model</title>
+          <author initials="J." surname="Arkko" fullname="Jari Arkko">
+            <organization>Ericsson</organization>
+          </author>
+          <date year="2019" month="July"/>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-arkko-arch-internet-threat-model-01"/>
+      </reference>
+      <reference anchor="I-D.draft-farrell-etm">
+        <front>
+          <title>We're gonna need a bigger threat model</title>
+          <author initials="S." surname="Farrell" fullname="Stephen Farrell">
+            <organization>Trinity College Dublin</organization>
+          </author>
+          <date year="2019" month="July"/>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-farrell-etm-03"/>
+      </reference>
+      <reference anchor="I-D.draft-kucherawy-httpbis-dict-sec">
+        <front>
+          <title>Security Considerations Regarding Compression Dictionaries</title>
+          <author initials="M." surname="Kucherawy" fullname="Murray Kucherawy">
+            <organization>Facebook, Inc.</organization>
+          </author>
+          <date year="2018" month="November"/>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-kucherawy-httpbis-dict-sec-00"/>
+      </reference>
+      <reference anchor="I-D.pironti-tls-length-hiding">
+        <front>
+          <title>Length Hiding Padding for the Transport Layer Security Protocol</title>
+          <author initials="A." surname="Pironti" fullname="Alfredo Pironti"></author>
+          <author initials="N." surname="Mavrogiannopoulos" fullname="Nikos Mavrogiannopoulos"></author>
+          <date year="2013" month="September"/>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-pironti-tls-length-hiding-02"/>
+      </reference>
+      <reference anchor="HEIST" target="https://tom.vg/papers/heist_blackhat2016.pdf">
+        <front>
+          <title>HEIST: HTTP Encrypted Information can be Stolen through TCP-windows</title>
+          <author initials="M." surname="Vanhoef" fullname="Mathy Vanhoef"></author>
+          <author initials="T." surname="Van Goethem" fullname="Tom Van Goethem"></author>
+          <date year="2016"/>
+        </front>
+      </reference>
+      <reference anchor="LZ77" target="https://ieeexplore.ieee.org/document/1055714">
+        <front>
+          <title>A Universal Algorithm for Sequential Data Compression</title>
+          <author initials="J." surname="Ziv" fullname="Jacob Ziv"></author>
+          <author initials="A." surname="Lempel" fullname="Abraham Lempel"></author>
+          <date year="1977" month="May"/>
+        </front>
+        <seriesInfo name="DOI" value="10.1109/TIT.1977.1055714"/>
+      </reference>
+      <reference anchor="LZ78" target="https://ieeexplore.ieee.org/document/1055934">
+        <front>
+          <title>Compression of individual sequences via variable-rate coding</title>
+          <author initials="J." surname="Ziv" fullname="Jacob Ziv"></author>
+          <author initials="A." surname="Lempel" fullname="Abraham Lempel"></author>
+          <date year="1978" month="September"/>
+        </front>
+        <seriesInfo name="DOI" value="10.1109/TIT.1978.1055934"/>
+      </reference>
+      <reference anchor="ZSTD-DICTS" target="https://code.fb.com/core-data/zstandard/">
+        <front>
+          <title>5 ways Facebook improved compression at scale with Zstandard</title>
+          <author initials="Y." surname="Collet" fullname="Yann Collet">
+            <organization>Facebook, Inc.</organization>
+          </author>
+          <author initials="W. F. P." surname="Handte" fullname="W. Felix P. Handte">
+            <organization>Facebook, Inc.</organization>
+          </author>
+          <author initials="N." surname="Terrell" fullname="Nick Terrell">
+            <organization>Facebook, Inc.</organization>
+          </author>
+          <date year="2018" month="December" day="19"/>
+        </front>
+      </reference>
+      <reference anchor="RFC2360" target="https://www.rfc-editor.org/info/rfc2360">
+        <front>
+          <title>Guide for Internet Standards Writers</title>
+          <author initials="G." surname="Scott" fullname="Gregor D. Scott"></author>
+          <date year="1998" month="June"/>
+          <abstract>
+            <t>
+              This document is a guide for Internet standard writers. It defines those characteristics that make standards coherent, unambiguous, and easy to interpret. This document specifies an Internet Best Current Practices for the Internet Community, and requests discussion and suggestions for improvements.
+            </t>
+          </abstract>
+        </front>
+        <seriesInfo name="BCP" value="22"/>
+        <seriesInfo name="RFC" value="2360"/>
+        <seriesInfo name="DOI" value="10.17487/RFC2360"/>
+      </reference>
+      <reference anchor="SECURITY-GUIDELINES" target="https://www.rfc-editor.org/info/rfc3552">
+        <front>
+          <title>Guidelines for Writing RFC Text on Security Considerations</title>
+          <author initials="E." surname="Rescorla" fullname="Eric Rescorla"></author>
+          <author initials="B." surname="Korver" fullname="Brian Korver"></author>
+          <date year="2003" month="July"/>
+          <abstract>
+            <t>
+              All RFCs are required to have a Security Considerations section. Historically, such sections have been relatively weak. This document provides guidelines to RFC authors on how to write a good Security Considerations section. This document specifies an Internet Best Current Practices for the Internet Community, and requests discussion and suggestions for improvements.
+            </t>
+          </abstract>
+        </front>
+        <seriesInfo name="BCP" value="72"/>
+        <seriesInfo name="RFC" value="3552"/>
+        <seriesInfo name="DOI" value="10.17487/RFC3552"/>
+      </reference>
+      <reference anchor="COOKIES" target="https://www.rfc-editor.org/info/rfc6265">
+        <front>
+          <title>HTTP State Management Mechanism</title>
+          <author initials="A." surname="Barth" fullname="Adam Barth"></author>
+          <date year="2011" month="April"/>
+          <abstract>
+            <t>
+              This document defines the HTTP Cookie and Set-Cookie header fields. These header fields can be used by HTTP servers to store state (called cookies) at HTTP user agents, letting the servers maintain a stateful session over the mostly stateless HTTP protocol. Although cookies have many historical infelicities that degrade their security and privacy, the Cookie and Set-Cookie header fields are widely used on the Internet. This document obsoletes RFC 2965. [STANDARDS-TRACK]
+            </t>
+          </abstract>
+        </front>
+        <seriesInfo name="RFC" value="6265"/>
+        <seriesInfo name="DOI" value="10.17487/RFC6265"/>
+      </reference>
+      <reference anchor="PRIVACY" target="https://www.rfc-editor.org/info/rfc6973">
+        <front>
+          <title>Privacy Considerations for Internet Protocols</title>
+          <author initials="A." surname="Cooper" fullname="Alissa Cooper"></author>
+          <author initials="H." surname="Tschofenig" fullname="Hannes Tschofenig"></author>
+          <author initials="B." surname="Aboba" fullname="Bernard Aboba"></author>
+          <author initials="J." surname="Peterson" fullname="Jon Peterson"></author>
+          <author initials="J." surname="Morris" fullname="John B. Morris, Jr."></author>
+          <author initials="M." surname="Hansen" fullname="Marit Hansen"></author>
+          <author initials="R." surname="Smith" fullname="Rhys Smith"></author>
+          <date year="2013" month="July"/>
+          <abstract>
+            <t>
+              This document offers guidance for developing privacy considerations for inclusion in protocol specifications. It aims to make designers, implementers, and users of Internet protocols aware of privacy-related design choices. It suggests that whether any individual RFC warrants a specific privacy considerations section will depend on the document's content.
+            </t>
+          </abstract>
+        </front>
+        <seriesInfo name="RFC" value="6973"/>
+        <seriesInfo name="DOI" value="10.17487/RFC6973"/>
+      </reference>
+      <reference anchor="HTTP-CACHING" target="https://www.rfc-editor.org/info/rfc7234">
+        <front>
+          <title>Hypertext Transfer Protocol (HTTP/1.1): Caching</title>
+          <author initials="R." surname="Fielding" fullname="Roy Fielding" role="editor"></author>
+          <author initials="M." surname="Nottingham" fullname="Mark Nottingham" role="editor"></author>
+          <author initials="J." surname="Reschke" fullname="Julian Reschke" role="editor"></author>
+          <date year="2014" month="June"/>
+          <abstract>
+            <t>
+              The Hypertext Transfer Protocol (HTTP) is a stateless application- level protocol for distributed, collaborative, hypertext information systems. This document defines HTTP caches and the associated header fields that control cache behavior or indicate cacheable response messages.
+            </t>
+          </abstract>
+        </front>
+        <seriesInfo name="RFC" value="7234"/>
+        <seriesInfo name="DOI" value="10.17487/RFC7234"/>
+      </reference>
+      <reference anchor="PERVASIVE-MONITORING" target="https://www.rfc-editor.org/info/rfc7258">
+        <front>
+          <title>Pervasive Monitoring Is an Attack</title>
+          <author initials="S." surname="Farrell" fullname="Stephen Farrell"></author>
+          <author initials="H." surname="Tschofenig" fullname="Hannes Tschofenig"></author>
+          <date year="2014" month="May"/>
+          <abstract>
+            <t>
+              Pervasive monitoring is a technical attack that should be mitigated in the design of IETF protocols, where possible.
+            </t>
+          </abstract>
+        </front>
+        <seriesInfo name="BCP" value="188"/>
+        <seriesInfo name="RFC" value="7258"/>
+        <seriesInfo name="DOI" value="10.17487/RFC7258"/>
+      </reference>
+      <reference anchor="SRI" target="https://www.w3.org/TR/SRI/">
+        <front>
+          <title>Subresource Integrity</title>
+          <author initials="D." surname="Akhawe" fullname="Devdatta Akhawe"></author>
+          <author initials="F." surname="Braun" fullname="Frederik Braun"></author>
+          <author initials="F." surname="Marier" fullname="François Marier"></author>
+          <author initials="J." surname="Weinberger" fullname="Joel Weinberger"></author>
+          <date year="2014" month="March"/>
+          <abstract>
+            <t>
+              Pervasive monitoring is a technical attack that should be mitigated in the design of IETF protocols, where possible.
+            </t>
+          </abstract>
+        </front>
+      </reference>
+    </references>
+
+    <!-- <section anchor="prior-art" title="Prior Art">
+      <t>
+        [TODO: should the list of prior proposals using dictionary-based compression be proper references, or called out here, or removed entirely?]
+      </t>
+    </section>
+
+    <section anchor="checklist" title="Checklist">
+      <t>
+        The following is intended to summarize the issues raised in this document, in such a way that it is easy to quickly evaluate which concerns apply to a particular application in question.
+      </t>
+      <t>
+        <list style="symbols">
+          <t>Is the set of dictionaries in use by this protocol statically specified?</t>
+          <t>Are these dictionaries derived from potentially private data?</t>
+          <t>[TODO]</t>
+        </list>
+      </t>
+    </section> -->
+
+    <section anchor="thanks" title="Acknowledgements">
+      <t>
+        The author wishes to acknowledge the following for their help in writing and improving this document: Murray Kucherawy, Yann Collet, Nick Terrell, ... [TODO]
+      </t>
+    </section>
+  </back>
+</rfc>
