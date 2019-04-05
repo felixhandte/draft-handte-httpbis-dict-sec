@@ -4,7 +4,7 @@
 <?rfc strict="no" ?>
 <?rfc rfcedstyle="yes"?>
 <?rfc subcompact="no"?>
-<rfc ipr="trust200902" category="info" docName="draft-kucherawy-httpbis-dict-sec-00">
+<rfc ipr="trust200902" category="info" docName="draft-kucherawy-httpbis-dict-sec-latest">
 <front>
 <title abbrev="Compression Dictionary Security">
 Security Considerations Regarding Compression Dictionaries
