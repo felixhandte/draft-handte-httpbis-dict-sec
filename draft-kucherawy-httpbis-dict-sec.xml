@@ -22,7 +22,7 @@ Security Considerations Regarding Compression Dictionaries
 <email>msk@fb.com</email>
 </address>
 </author>
-<date year="2018"/>
+<date year="2019"/>
 <area>ART</area>
 <workgroup>Individual submission</workgroup>
 <keyword>Compression</keyword>
@@ -118,8 +118,28 @@ This document enumerates known security considerations about a space that is und
 </section>
 </middle>
 <back>
-<references title="Normative References"> </references>
-<references title="Informative References"> </references>
+<references title="Normative References">
+<reference anchor="PLACEHOLDER" target="http://www.zstd.net">
+<front>
+<title>
+Zstandard - Real-time data compression algorithm
+</title>
+<author fullname="Yann Collet"> </author>
+<date year="2017"/>
+</front>
+</reference>
+</references>
+<references title="Informative References">
+<reference anchor="PLACEHOLDER2" target="http://www.zstd.net">
+<front>
+<title>
+Zstandard - Real-time data compression algorithm
+</title>
+<author fullname="Yann Collet"> </author>
+<date year="2017"/>
+</front>
+</reference>
+</references>
 <section anchor="thanks" title="Acknowledgements">
 <t>
 The author wishes to acknowledge the following for their review and constructive criticism of this update: TBD
