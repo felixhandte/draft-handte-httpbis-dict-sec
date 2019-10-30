@@ -2,9 +2,9 @@
 
 This is the working area for the individual Internet-Draft, "Security Considerations Regarding Compression Dictionaries".
 
-* [Editor's Copy](https://felixhandte.github.io/draft-kucherawy-httpbis-dict-sec/#go.draft-kucherawy-httpbis-dict-sec.html)
-* [Individual Draft](https://tools.ietf.org/html/draft-kucherawy-httpbis-dict-sec)
-* [Compare Editor's Copy to Individual Draft](https://felixhandte.github.io/draft-kucherawy-httpbis-dict-sec/#go.draft-kucherawy-httpbis-dict-sec.diff)
+* [Editor's Copy](https://felixhandte.github.io/draft-handte-httpbis-dict-sec/#go.draft-handte-httpbis-dict-sec.html)
+* [Individual Draft](https://tools.ietf.org/html/draft-handte-httpbis-dict-sec)
+* [Compare Editor's Copy to Individual Draft](https://felixhandte.github.io/draft-handte-httpbis-dict-sec/#go.draft-handte-httpbis-dict-sec.diff)
 
 ## Building the Draft
 
@@ -21,4 +21,4 @@ This requires that you have the necessary software installed.  See
 ## Contributing
 
 See the
-[guidelines for contributions](https://github.com/felixhandte/draft-kucherawy-httpbis-dict-sec/blob/master/CONTRIBUTING.md).
+[guidelines for contributions](https://github.com/felixhandte/draft-handte-httpbis-dict-sec/blob/master/CONTRIBUTING.md).
