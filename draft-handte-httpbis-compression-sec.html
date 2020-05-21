@@ -1,0 +1,2560 @@
+<!DOCTYPE html>
+<html lang="en" class="Internet-Draft">
+<head>
+<meta charset="utf-8">
+<meta content="Common,Latin" name="scripts">
+<meta content="initial-scale=1.0" name="viewport">
+<title>Security Considerations Regarding Compression</title>
+<meta content="W. Felix P. Handte" name="author">
+<meta content="
+       
+          Dictionary-based compression enables better performance, but brings state into the process of compression, with all the complexities that follow. This document explores the security implications of this technique in the context of internet protocols and enumerates known risks and mitigations.  
+         [TODO] 
+       
+    " name="description">
+<meta content="xml2rfc 2.44.0" name="generator">
+<meta content="Compression" name="keyword">
+<meta content="Security" name="keyword">
+<meta content="Dictionaries" name="keyword">
+<meta content="draft-handte-httpbis-compression-sec-latest" name="ietf.draft">
+<link href="draft-handte-httpbis-compression-sec.xml" rel="alternate" type="application/rfc+xml">
+<link href="#copyright" rel="license">
+<style type="text/css">@import url('https://martinthomson.github.io/i-d-template/fonts.css');
+
+html {
+  --background-color: #fff;
+  --text-color: #222;
+  --title-color: #191919;
+  --link-color: #2a6496;
+  --highlight-color: #f9f9f9;
+  --line-color: #eee;
+  --small-font-size: 14.5px;
+}
+body {
+  max-width: 600px;
+  margin: 75px auto;
+  padding: 0 5px;
+  color: var(--text-color);
+  background-color: var(--background-color);
+  font: 16px/22px "Lora", serif;
+  scroll-behavior: smooth;
+}
+
+.ears {
+  display: none;
+}
+
+/* headings */
+#title, h1, h2, h3, h4, h5, h6 {
+  font-family: "Cabin Condensed", sans-serif;
+  font-weight: 600;
+  margin: 0.8em 0 0.3em;
+  font-size-adjust: 0.5;
+  color: var(--title-color);
+}
+#title {
+  padding: 1em 0 0.2em;
+  font-size: 32px;
+  line-height: 40px;
+  clear: both;
+}
+h1, h2, h3 {
+  font-size: 22px;
+  line-height: 26px;
+}
+h4, h5, h6 {
+  font-size: 18px;
+  line-height: 22px;
+}
+
+/* general structure */
+.author {
+  padding-bottom: 0.3em;
+}
+#abstract+p, #abstract+p code, #abstract+p samp, #abstract+p tt {
+  font-size: 18px;
+  line-height: 24px;
+}
+p {
+  padding: 0;
+  margin: 0.5em 0;
+  text-align: left;
+}
+div, span {
+  position: relative;
+}
+div {
+  margin: 0;
+}
+.alignRight.art-text {
+  background-color: var(--highlight-color);
+  border: 1px solid var(--line-color);
+  border-radius: 3px;
+  padding: 0.5em 1em 0;
+  margin-bottom: 0.5em;
+}
+.alignRight.art-text pre {
+  padding: 0;
+  width: auto;
+}
+.alignRight {
+  margin: 1em 0;
+}
+.alignRight > *:first-child {
+  border: none;
+  margin: 0;
+  float: right;
+  clear: both;
+}
+.alignRight > *:nth-child(2) {
+  clear: both;
+  display: block;
+  border: none;
+}
+svg {
+  display: block;
+}
+.alignCenter.art-text {
+  background-color: var(--highlight-color);
+  border: 1px solid var(--line-color);
+  border-radius: 3px;
+  padding: 0.5em 1em 0;
+  margin-bottom: 0.5em;
+}
+.alignCenter.art-text pre {
+  padding: 0;
+  width: auto;
+}
+.alignCenter {
+  margin: 1em 0;
+}
+.alignCenter > *:first-child {
+  border: none;
+  /* this isn't optimal, but it's an existence proof.  PrinceXML doesn't
+     support flexbox yet.
+  */
+  display: table;
+  margin: 0 auto;
+}
+
+/* lists */
+ol, ul {
+  padding: 0;
+  margin: 0 0 1em 2em;
+}
+ol ol, ul ul, ol ul, ul ol {
+  margin-left: 1em;
+}
+li {
+  margin: 0 0 0.25em 0;
+}
+.ulCompact li {
+  margin: 0;
+}
+ul.empty, .ulEmpty {
+  list-style-type: none;
+}
+ul.empty li, .ulEmpty li {
+  margin-top: 0.5em;
+}
+ul.compact, .ulCompact,
+ol.compact, .olCompact {
+  line-height: 100%;
+  margin: 0 0 0 2em;
+}
+
+/* definition lists */
+dl {
+}
+dl > dt {
+  float: left;
+  margin-right: 1em;
+}
+dl > dd {
+  margin-bottom: .8em;
+  min-height: 1.3em;
+}
+dl.compact > dd, .dlCompact > dd {
+  margin-bottom: 0em;
+}
+dl > dd > dl {
+  margin-top: 0.5em;
+  margin-bottom: 0em;
+}
+dd.break {
+  display: none;
+}
+
+/* links */
+a, a[href].selfRef:hover {
+  text-decoration: none;
+}
+a[href].selfRef {
+  color: var(--text-color);
+}
+a[href] {
+  color: var(--link-color);
+}
+a[href]:hover {
+  text-decoration: underline;
+}
+a[href].selfRef:hover {
+  background-color: var(--highlight-color);
+}
+a.xref {
+  white-space: nowrap;
+}
+
+/* Figures */
+tt, code, pre {
+  background-color: var(--highlight-color);
+  font: 14px/22px 'Oxygen Mono', monospace;
+}
+pre {
+  border: 1px solid var(--line-color);
+  font-size: 13.5px;
+  line-height: 16px;
+  letter-spacing: -0.2px;
+  margin: 5px;
+  padding: 5px;
+}
+img {
+  max-width: 100%;
+}
+figure {
+  margin: 0.5em 0;
+}
+figure blockquote {
+  margin: 0.8em 0.4em 0.4em;
+}
+figcaption, caption {
+  font-style: italic;
+  margin: 0.5em 1.5em;
+  text-align: left;
+}
+@media screen {
+  pre {
+    display: inline-block;
+    overflow-x: auto;
+    max-width: 100%;
+    width: calc(100% - 22px - 1em);
+  }
+  figure pre {
+    display: block;
+    width: calc(100% - 25px);
+  }
+  pre + .pilcrow {
+    display: inline-block;
+    vertical-align: text-bottom;
+    padding-bottom: 8px;
+  }
+  table {
+    display: inline-block;
+    overflow-x: auto;
+  }
+}
+
+/* aside, blockquote */
+aside, blockquote {
+  margin-left: 0;
+  padding: 0 2em;
+  font-style: italic;
+}
+blockquote {
+  background-color: var(--highlight-color);
+  border: 1px solid var(--line-color);
+  border-radius: 3px;
+  margin: 1em 0;
+}
+cite {
+  display: block;
+  text-align: right;
+  font-style: italic;
+}
+
+/* tables */
+table {
+  width: 100%;
+  margin: 0 0 1em;
+  border-collapse: collapse;
+  border: 1px solid var(--line-color);
+}
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.5em 0.75em;
+}
+th {
+  text-align: left;
+  background-color: #eee;
+}
+tr:nth-child(2n) > td {
+  background-color: var(--background-color);
+}
+tr:nth-child(2n+1) > td {
+  background-color: var(--highlight-color);
+}
+thead+tbody tr:nth-child(2n) > td {
+  background-color: var(--highlight-color);
+}
+thead+tbody tr:nth-child(2n+1) > td {
+  background-color: var(--background-color);
+}
+table caption {
+  margin: 0;
+  padding: 3px 1em;
+  border-top: 1px solid var(--line-color);
+}
+table p {
+  /* XXX to avoid bottom margin on table row signifiers. If paragraphs should
+     be allowed within tables more generally, it would be far better to select on a class. */
+  margin: 0;
+}
+
+/* pilcrow */
+a.pilcrow {
+  margin-left: 3px;
+  visibility: hidden;
+  user-select: none;
+}
+a.pilcrow[href] { color: #ddd; }
+a.pilcrow[href]:hover { text-decoration: none; }
+@media screen {
+  :hover > a.pilcrow {
+    visibility: visible;
+  }
+  a.pilcrow:hover {
+    background-color: transparent;
+  }
+}
+
+/* misc */
+hr {
+  border: 0;
+  border-top: 1px solid var(--line-color);
+}
+.bcp14 {
+  font-variant: small-caps;
+}
+
+.role {
+  font-variant: all-small-caps;
+}
+
+/* info block */
+#identifiers {
+  margin: 0;
+  font-size: var(--small-font-size);
+  line-height: 18px;
+  --identifier-width: 8em;
+}
+#identifiers dt {
+  width: var(--identifier-width);
+  margin: 0;
+  clear: left;
+  float: left;
+  text-align: right;
+}
+#identifiers dd {
+  margin: 0 0 0 calc(1em + var(--identifier-width));
+  min-width: 5em;
+}
+#identifiers .authors .author {
+  display: inline-block;
+  margin-right: 1.5em;
+}
+#identifiers .authors .org {
+  font-style: italic;
+}
+
+/* The prepared/rendered info at the very bottom of the page */
+.docInfo {
+  color: #999;
+  font-size: 0.9em;
+  font-style: italic;
+  margin-top: 2em;
+}
+.docInfo .prepared {
+  float: left;
+}
+.docInfo .prepared {
+  float: right;
+}
+
+/* table of contents */
+#toc {
+  padding: 0.75em 0 2em 0;
+  margin-bottom: 1em;
+}
+#toc nav ul {
+  margin: 0 0.5em 0 0;
+  padding: 0;
+  list-style: none;
+}
+#toc nav li {
+  line-height: 1.3em;
+  margin: 0.75em 0;
+  padding-left: 1.2em;
+  text-indent: -1.2em;
+}
+#toc a.xref {
+  white-space: normal;
+}
+/* references */
+.references dt {
+  text-align: right;
+  font-weight: bold;
+  min-width: 7em;
+}
+.references dd {
+  margin-left: 8em;
+  overflow: auto;
+}
+
+.refInstance {
+  margin-bottom: 1.25em;
+}
+
+.references .ascii {
+  margin-bottom: 0.25em;
+}
+
+/* index */
+.index ul {
+  margin: 0 0 0 1em;
+  padding: 0;
+  list-style: none;
+}
+.index ul ul {
+  margin: 0;
+}
+.index li {
+  margin: 0;
+  text-indent: -2em;
+  padding-left: 2em;
+  padding-bottom: 5px;
+}
+.indexIndex {
+  margin: 0.5em 0 1em;
+}
+.index a {
+  font-weight: 700;
+}
+/* make the index two-column on all but the smallest screens */
+@media (min-width: 500px) {
+  .index ul {
+    column-count: 2;
+    column-gap: 20px;
+  }
+  .index ul ul {
+    column-count: 1;
+    column-gap: 0;
+  }
+}
+
+/* authors */
+address.vcard {
+  font-style: normal;
+  margin: 1em 0;
+}
+address.vcard .nameRole {
+  font-weight: 700;
+  margin-left: 0;
+}
+address.vcard .label {
+  margin: 0.5em 0;
+}
+address.vcard .type {
+  display: none;
+}
+.alternative-contact {
+  margin: 1.5em 0 1em;
+}
+hr.addr {
+  border-top: 1px dashed;
+  margin: 0;
+  color: #ddd;
+  max-width: calc(100% - 16px);
+}
+@media (min-width: 500px) {
+  #authors-addresses > section {
+    display: relative;
+    padding: 32px 0 0;
+    column-count: 2;
+    column-gap: 20px;
+  }
+  #name-authors-addresses {
+    position: absolute;
+    top: 0px;
+    column-span: all;
+  }
+  /* hack for break-inside: avoid-column */
+  #authors-addresses address {
+    display: inline-block;
+    break-inside: avoid-column;
+  }
+}
+
+/* temporary notes */
+.rfcEditorRemove::before {
+  position: absolute;
+  top: 0.2em;
+  right: 0.2em;
+  padding: 0.2em;
+  content: "The RFC Editor will remove this note";
+  color: #b76427;
+  background-color: rgba(249, 232, 105, 0.3);
+}
+.rfcEditorRemove {
+  position: relative;
+  padding-top: 1.8em;
+  background-color: rgba(249, 232, 105, 0.3);
+  border-radius: 3px;
+}
+.cref {
+  background-color: rgba(249, 232, 105, 0.3);
+  padding: 2px 4px;
+}
+.crefSource {
+  font-style: italic;
+}
+/* alternative layout for smaller screens */
+@media screen and (max-width: 929px) {
+  #toc {
+    position: fixed;
+    z-index: 2;
+    top: 0;
+    right: 0;
+    padding: 0;
+    margin: 0;
+    border-bottom: 1px solid #ccc;
+    opacity: 0.6;
+  }
+  #toc.active {
+      opacity: 1;
+  }
+  #toc h2 {
+    margin: 0;
+    padding: 2px 0 2px 6px;
+    padding-right: 1em;
+    font-size: 18px;
+    line-height: 24px;
+    min-width: 190px;
+    text-align: right;
+    background-color: #444;
+    color: white;
+    cursor: pointer;
+  }
+  #toc h2::before { /* css hamburger */
+    float: right;
+    position: relative;
+    width: 1em;
+    height: 1px;
+    left: -164px;
+    margin: 8px 0 0 0;
+    background: white none repeat scroll 0 0;
+    box-shadow: 0 4px 0 0 white, 0 8px 0 0 white;
+    content: "";
+  }
+  #toc nav {
+    display: none;
+    background-color: var(--background-color);
+    padding: 0.5em 1em 1em;
+    overflow: auto;
+    overscroll-behavior: contain;
+    height: calc(100vh - 48px);
+    border-left: 1px solid #ddd;
+  }
+  #toc.active nav {
+    display: block;
+  }
+  /* Make the collapsed ToC header render white on gray also when it's a link */
+  #toc h2 a,
+  #toc h2 a:link,
+  #toc h2 a:focus,
+  #toc h2 a:hover,
+  #toc a.toplink,
+  #toc a.toplink:hover {
+    color: white;
+    background-color: #444;
+    text-decoration: none;
+  }
+  #toc a.toplink {
+    margin-top: 2px;
+  }
+}
+
+/* alternative layout for wide screens */
+@media screen and (min-width: 930px) {
+  body {
+    padding-right: 360px;
+    padding-right: calc(min(180px + 20%, 500px));
+  }
+  #toc {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    right: calc(50vw - 480px);
+    width: 312px;
+    margin: 0;
+    padding: 0;
+    z-index: 1;
+  }
+  #toc h2 {
+    margin: 0;
+    padding: 0.25em 1em 1em 0;
+  }
+  #toc nav {
+    display: block;
+    height: calc(90vh - 84px);
+    bottom: 0;
+    padding: 0.5em 0 2em;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+  #toc nav > ul  {
+    margin-bottom: 2em;
+  }
+  #toc ul {
+    margin: 0 0 0 4px;
+    font-size: var(--small-font-size);
+  }
+  #toc ul p, #toc ul li {
+    margin: 2px 0;
+    line-height: 22px;
+  }
+  img { /* future proofing */
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* pagination */
+@media print {
+  body {
+    width: 100%;
+  }
+  p {
+    orphans: 3;
+    widows: 3;
+  }
+  #n-copyright-notice {
+    border-bottom: none;
+  }
+  #toc, #n-introduction {
+    page-break-before: always;
+  }
+  #toc {
+    border-top: none;
+    padding-top: 0;
+  }
+  figure, pre {
+    page-break-inside: avoid;
+  }
+  figure {
+    overflow: scroll;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+  }
+  h2+*, h3+*, h4+*, h5+*, h6+* {
+    page-break-before: avoid;
+  }
+  pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 10pt;
+  }
+  table {
+    border: 1px solid #ddd;
+  }
+  td {
+    border-top: 1px solid #ddd;
+  }
+}
+
+@page :first {
+  padding-top: 0;
+  @top-left {
+    content: normal;
+    border: none;
+  }
+  @top-center {
+    content: normal;
+    border: none;
+  }
+  @top-right {
+    content: normal;
+    border: none;
+  }
+}
+
+@page {
+  size: A4;
+  margin-bottom: 45mm;
+  padding-top: 20px;
+}
+
+/* Changes introduced to fix issues found during implementation */
+
+/* Separate body from document info even without intervening H1 */
+section {
+  clear: both;
+}
+
+/* Top align author divs, to avoid names without organization dropping level with org names */
+.author {
+  vertical-align: top;
+}
+
+/* Style section numbers with more space between number and title */
+.section-number {
+  padding-right: 0.5em;
+}
+
+/* Add styling for a link in the ToC that points to the top of the document */
+a.toplink {
+  float: right;
+  margin: 8px 0.5em 0;
+}
+
+/* Fix the dl styling to match the RFC 7992 attributes */
+dl > dt,
+dl.dlParallel > dt {
+  float: left;
+  margin-right: 1em;
+}
+dl.dlNewline > dt {
+  float: none;
+}
+
+/* Provide styling for table cell text alignment */
+table .text-left, table .text-left {
+  text-align: left;
+}
+table .text-center, table .text-center {
+  text-align: center;
+}
+table .text-right, table .text-right {
+  text-align: right;
+}
+
+/* Make the alternative author contact information look less like just another
+   author, and group it closer with the primary author contact information */
+.alternative-contact {
+  margin: 0.5em 0 0.25em 0;
+}
+address .non-ascii {
+  margin: 0 0 0 2em;
+}
+
+/* With it being possible to set tables with alignment
+  left, center, and right, { width: 100%; } does not make sense */
+table {
+  width: auto;
+}
+
+/* Avoid reference text that sits in a block with very wide left margin,
+   because of a long floating dt label.*/
+.references dd {
+  overflow: visible;
+}
+
+/* Control caption placement */
+caption {
+  caption-side: bottom;
+}
+
+/* Limit the width of the author address vcard, so names in right-to-left
+   script don't end up on the other side of the page. */
+
+address.vcard {
+  max-width: 20em;
+  margin-right: auto;
+}
+
+/* For address alignment dependent on LTR or RTL scripts */
+address div.left {
+  text-align: left;
+}
+address div.right {
+  text-align: right;
+}
+
+/* Provide table alignment support.  We can't use the alignX classes above
+   since they do unwanted things with caption and other styling. */
+table.right {
+ margin-left: auto;
+ margin-right: 0;
+}
+table.center {
+ margin-left: auto;
+ margin-right: auto;
+}
+table.left {
+ margin-left: 0;
+ margin-right: auto;
+}
+
+/* Give the table caption label the same styling as the figcaption */
+
+@media print {
+  .toplink {
+    display: none;
+  }
+
+  /* avoid overwriting the top border line with the ToC header */
+  #toc {
+    padding-top: 1px;
+  }
+
+  /* Avoid page breaks inside dl and author address entries */
+  dd {
+    page-break-before: avoid;
+  }
+  .vcard {
+    page-break-inside: avoid;
+  }
+
+}
+/* Tweak the bcp14 keyword presentation */
+.bcp14 {
+  font-variant: small-caps;
+  font-weight: bold;
+  font-size: 0.9em;
+}
+</style>
+<link href="rfc-local.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+<table class="ears">
+<thead><tr>
+<td class="left">Internet-Draft</td>
+<td class="center">Compression Security</td>
+<td class="right">May 2020</td>
+</tr></thead>
+<tfoot><tr>
+<td class="left">Handte</td>
+<td class="center">Expires 21 November 2020</td>
+<td class="right">[Page]</td>
+</tr></tfoot>
+</table>
+<div id="external-metadata" class="document-information"></div>
+<div id="internal-metadata" class="document-information">
+<dl id="identifiers">
+<dt class="label-workgroup">Workgroup:</dt>
+<dd class="workgroup">Individual submission</dd>
+<dt class="label-internet-draft">Internet-Draft:</dt>
+<dd class="internet-draft">draft-handte-httpbis-compression-sec-latest</dd>
+<dt class="label-published">Published:</dt>
+<dd class="published">
+<time datetime="2020-05-20" class="published">20 May 2020</time>
+    </dd>
+<dt class="label-intended-status">Intended Status:</dt>
+<dd class="intended-status">Informational</dd>
+<dt class="label-expires">Expires:</dt>
+<dd class="expires"><time datetime="2020-11-21">21 November 2020</time></dd>
+<dt class="label-authors">Author:</dt>
+<dd class="authors">
+<div class="author">
+      <div class="author-name">W. F. P. Handte</div>
+<div class="org">Facebook, Inc.</div>
+</div>
+</dd>
+</dl>
+</div>
+<h1 id="title">Security Considerations Regarding Compression</h1>
+<section id="section-abstract">
+      <h2 id="abstract"><a href="#abstract" class="selfRef">Abstract</a></h2>
+<p id="section-abstract-1">
+        <span class="cref">[TODO]</span><a href="#section-abstract-1" class="pilcrow">¶</a></p>
+</section>
+<section class="note rfcEditorRemove" id="section-note.1">
+      <h2 id="name-draft-development">
+<a href="#name-draft-development" class="section-name selfRef">Draft Development</a>
+      </h2>
+<p id="section-note.1-1">This note is to be removed before publishing as an RFC.<a href="#section-note.1-1" class="pilcrow">¶</a></p>
+<p id="section-note.1-2">
+        The source code and issues list for this draft can be found at https://github.com/felixhandte/draft-handte-httpbis-dict-sec.<a href="#section-note.1-2" class="pilcrow">¶</a></p>
+<p id="section-note.1-3">
+        Discussion of this draft takes place on the HTTP working group mailing list (ietf-http-wg@w3.org), which is archived at https://lists.w3.org/Archives/Public/ietf-http-wg/.<a href="#section-note.1-3" class="pilcrow">¶</a></p>
+</section>
+<div id="status-of-memo">
+<section id="section-boilerplate.1">
+        <h2 id="name-status-of-this-memo">
+<a href="#name-status-of-this-memo" class="section-name selfRef">Status of This Memo</a>
+        </h2>
+<p id="section-boilerplate.1-1">
+        This Internet-Draft is submitted in full conformance with the
+        provisions of BCP 78 and BCP 79.<a href="#section-boilerplate.1-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-2">
+        Internet-Drafts are working documents of the Internet Engineering Task
+        Force (IETF). Note that other groups may also distribute working
+        documents as Internet-Drafts. The list of current Internet-Drafts is
+        at <span><a href="https://datatracker.ietf.org/drafts/current/">https://datatracker.ietf.org/drafts/current/</a></span>.<a href="#section-boilerplate.1-2" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-3">
+        Internet-Drafts are draft documents valid for a maximum of six months
+        and may be updated, replaced, or obsoleted by other documents at any
+        time. It is inappropriate to use Internet-Drafts as reference
+        material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-4">
+        This Internet-Draft will expire on 21 November 2020.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="copyright">
+<section id="section-boilerplate.2">
+        <h2 id="name-copyright-notice">
+<a href="#name-copyright-notice" class="section-name selfRef">Copyright Notice</a>
+        </h2>
+<p id="section-boilerplate.2-1">
+            Copyright (c) 2020 IETF Trust and the persons identified as the
+            document authors. All rights reserved.<a href="#section-boilerplate.2-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.2-2">
+            This document is subject to BCP 78 and the IETF Trust's Legal
+            Provisions Relating to IETF Documents
+            (<span><a href="https://trustee.ietf.org/license-info">https://trustee.ietf.org/license-info</a></span>) in effect on the date of
+            publication of this document. Please review these documents
+            carefully, as they describe your rights and restrictions with
+            respect to this document. Code Components extracted from this
+            document must include Simplified BSD License text as described in
+            Section 4.e of the Trust Legal Provisions and are provided without
+            warranty as described in the Simplified BSD License.<a href="#section-boilerplate.2-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="toc">
+<section id="section-toc.1">
+        <a href="#" onclick="scroll(0,0)" class="toplink">▲</a><h2 id="name-table-of-contents">
+<a href="#name-table-of-contents" class="section-name selfRef">Table of Contents</a>
+        </h2>
+<nav class="toc"><ul class="toc ulEmpty">
+<li class="toc ulEmpty" id="section-toc.1-1.1">
+            <p id="section-toc.1-1.1.1" class="keepWithNext"><a href="#section-1" class="xref">1</a>.  <a href="#name-introduction" class="xref">Introduction</a><a href="#section-toc.1-1.1.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.2">
+            <p id="section-toc.1-1.2.1"><a href="#section-2" class="xref">2</a>.  <a href="#name-basis" class="xref">Basis</a><a href="#section-toc.1-1.2.1" class="pilcrow">¶</a></p>
+<ul class="toc ulEmpty">
+<li class="toc ulEmpty" id="section-toc.1-1.2.2.1">
+                <p id="section-toc.1-1.2.2.1.1" class="keepWithNext"><a href="#section-2.1" class="xref">2.1</a>.  <a href="#name-environments" class="xref">Environments</a><a href="#section-toc.1-1.2.2.1.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.2.2.2">
+                <p id="section-toc.1-1.2.2.2.1"><a href="#section-2.2" class="xref">2.2</a>.  <a href="#name-goals" class="xref">Goals</a><a href="#section-toc.1-1.2.2.2.1" class="pilcrow">¶</a></p>
+<ul class="toc ulEmpty">
+<li class="toc ulEmpty" id="section-toc.1-1.2.2.2.2.1">
+                    <p id="section-toc.1-1.2.2.2.2.1.1" class="keepWithNext"><a href="#section-2.2.1" class="xref">2.2.1</a>.  <a href="#name-communications-security" class="xref">Communications Security</a><a href="#section-toc.1-1.2.2.2.2.1.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.2.2.2.2.2">
+                    <p id="section-toc.1-1.2.2.2.2.2.1"><a href="#section-2.2.2" class="xref">2.2.2</a>.  <a href="#name-systems-security" class="xref">Systems Security</a><a href="#section-toc.1-1.2.2.2.2.2.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.2.2.2.2.3">
+                    <p id="section-toc.1-1.2.2.2.2.3.1"><a href="#section-2.2.3" class="xref">2.2.3</a>.  <a href="#name-privacy" class="xref">Privacy</a><a href="#section-toc.1-1.2.2.2.2.3.1" class="pilcrow">¶</a></p>
+</li>
+</ul>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.2.2.3">
+                <p id="section-toc.1-1.2.2.3.1"><a href="#section-2.3" class="xref">2.3</a>.  <a href="#name-threat-model" class="xref">Threat Model</a><a href="#section-toc.1-1.2.2.3.1" class="pilcrow">¶</a></p>
+<ul class="toc ulEmpty">
+<li class="toc ulEmpty" id="section-toc.1-1.2.2.3.2.1">
+                    <p id="section-toc.1-1.2.2.3.2.1.1"><a href="#section-2.3.1" class="xref">2.3.1</a>.  <a href="#name-passive-attacks" class="xref">Passive Attacks</a><a href="#section-toc.1-1.2.2.3.2.1.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.2.2.3.2.2">
+                    <p id="section-toc.1-1.2.2.3.2.2.1"><a href="#section-2.3.2" class="xref">2.3.2</a>.  <a href="#name-active-attacks" class="xref">Active Attacks</a><a href="#section-toc.1-1.2.2.3.2.2.1" class="pilcrow">¶</a></p>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.3">
+            <p id="section-toc.1-1.3.1"><a href="#section-3" class="xref">3</a>.  <a href="#name-compression" class="xref">Compression</a><a href="#section-toc.1-1.3.1" class="pilcrow">¶</a></p>
+<ul class="toc ulEmpty">
+<li class="toc ulEmpty" id="section-toc.1-1.3.2.1">
+                <p id="section-toc.1-1.3.2.1.1"><a href="#section-3.1" class="xref">3.1</a>.  <a href="#name-components" class="xref">Components</a><a href="#section-toc.1-1.3.2.1.1" class="pilcrow">¶</a></p>
+<ul class="toc ulEmpty">
+<li class="toc ulEmpty" id="section-toc.1-1.3.2.1.2.1">
+                    <p id="section-toc.1-1.3.2.1.2.1.1"><a href="#section-3.1.1" class="xref">3.1.1</a>.  <a href="#name-compressor" class="xref">Compressor</a><a href="#section-toc.1-1.3.2.1.2.1.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.3.2.1.2.2">
+                    <p id="section-toc.1-1.3.2.1.2.2.1"><a href="#section-3.1.2" class="xref">3.1.2</a>.  <a href="#name-decompressor" class="xref">Decompressor</a><a href="#section-toc.1-1.3.2.1.2.2.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.3.2.1.2.3">
+                    <p id="section-toc.1-1.3.2.1.2.3.1"><a href="#section-3.1.3" class="xref">3.1.3</a>.  <a href="#name-message-representation" class="xref">Message Representation</a><a href="#section-toc.1-1.3.2.1.2.3.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.3.2.1.2.4">
+                    <p id="section-toc.1-1.3.2.1.2.4.1"><a href="#section-3.1.4" class="xref">3.1.4</a>.  <a href="#name-management" class="xref">Management</a><a href="#section-toc.1-1.3.2.1.2.4.1" class="pilcrow">¶</a></p>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.4">
+            <p id="section-toc.1-1.4.1"><a href="#section-4" class="xref">4</a>.  <a href="#name-dictionaries" class="xref">Dictionaries</a><a href="#section-toc.1-1.4.1" class="pilcrow">¶</a></p>
+<ul class="toc ulEmpty">
+<li class="toc ulEmpty" id="section-toc.1-1.4.2.1">
+                <p id="section-toc.1-1.4.2.1.1"><a href="#section-4.1" class="xref">4.1</a>.  <a href="#name-introduction-2" class="xref">Introduction</a><a href="#section-toc.1-1.4.2.1.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.4.2.2">
+                <p id="section-toc.1-1.4.2.2.1"><a href="#section-4.2" class="xref">4.2</a>.  <a href="#name-integration" class="xref">Integration</a><a href="#section-toc.1-1.4.2.2.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.4.2.3">
+                <p id="section-toc.1-1.4.2.3.1"><a href="#section-4.3" class="xref">4.3</a>.  <a href="#name-dictionary-compression" class="xref">Dictionary Compression</a><a href="#section-toc.1-1.4.2.3.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.4.2.4">
+                <p id="section-toc.1-1.4.2.4.1"><a href="#section-4.4" class="xref">4.4</a>.  <a href="#name-dictionary-contents" class="xref">Dictionary Contents</a><a href="#section-toc.1-1.4.2.4.1" class="pilcrow">¶</a></p>
+<ul class="toc ulEmpty">
+<li class="toc ulEmpty" id="section-toc.1-1.4.2.4.2.1">
+                    <p id="section-toc.1-1.4.2.4.2.1.1"><a href="#section-4.4.1" class="xref">4.4.1</a>.  <a href="#name-unstructured-dictionaries" class="xref">Unstructured Dictionaries</a><a href="#section-toc.1-1.4.2.4.2.1.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.4.2.4.2.2">
+                    <p id="section-toc.1-1.4.2.4.2.2.1"><a href="#section-4.4.2" class="xref">4.4.2</a>.  <a href="#name-structured-dictionaries" class="xref">Structured Dictionaries</a><a href="#section-toc.1-1.4.2.4.2.2.1" class="pilcrow">¶</a></p>
+</li>
+</ul>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.4.2.5">
+                <p id="section-toc.1-1.4.2.5.1"><a href="#section-4.5" class="xref">4.5</a>.  <a href="#name-using-dictionaries" class="xref">Using Dictionaries</a><a href="#section-toc.1-1.4.2.5.1" class="pilcrow">¶</a></p>
+<ul class="toc ulEmpty">
+<li class="toc ulEmpty" id="section-toc.1-1.4.2.5.2.1">
+                    <p id="section-toc.1-1.4.2.5.2.1.1"><a href="#section-4.5.1" class="xref">4.5.1</a>.  <a href="#name-generating-dictionaries" class="xref">Generating Dictionaries</a><a href="#section-toc.1-1.4.2.5.2.1.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.4.2.5.2.2">
+                    <p id="section-toc.1-1.4.2.5.2.2.1"><a href="#section-4.5.2" class="xref">4.5.2</a>.  <a href="#name-identifying-dictionaries" class="xref">Identifying Dictionaries</a><a href="#section-toc.1-1.4.2.5.2.2.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.4.2.5.2.3">
+                    <p id="section-toc.1-1.4.2.5.2.3.1"><a href="#section-4.5.3" class="xref">4.5.3</a>.  <a href="#name-distributing-dictionaries" class="xref">Distributing Dictionaries</a><a href="#section-toc.1-1.4.2.5.2.3.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.4.2.5.2.4">
+                    <p id="section-toc.1-1.4.2.5.2.4.1"><a href="#section-4.5.4" class="xref">4.5.4</a>.  <a href="#name-selecting-dictionaries" class="xref">Selecting Dictionaries</a><a href="#section-toc.1-1.4.2.5.2.4.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.4.2.5.2.5">
+                    <p id="section-toc.1-1.4.2.5.2.5.1"><a href="#section-4.5.5" class="xref">4.5.5</a>.  <a href="#name-using-dictionaries-2" class="xref">Using Dictionaries</a><a href="#section-toc.1-1.4.2.5.2.5.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.4.2.5.2.6">
+                    <p id="section-toc.1-1.4.2.5.2.6.1"><a href="#section-4.5.6" class="xref">4.5.6</a>.  <a href="#name-deleting-dictionaries" class="xref">Deleting Dictionaries</a><a href="#section-toc.1-1.4.2.5.2.6.1" class="pilcrow">¶</a></p>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5">
+            <p id="section-toc.1-1.5.1"><a href="#section-5" class="xref">5</a>.  <a href="#name-risks" class="xref">Risks</a><a href="#section-toc.1-1.5.1" class="pilcrow">¶</a></p>
+<ul class="toc ulEmpty">
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.1">
+                <p id="section-toc.1-1.5.2.1.1"><a href="#section-5.1" class="xref">5.1</a>.  <a href="#name-revealing-message-content" class="xref">Revealing Message Content</a><a href="#section-toc.1-1.5.2.1.1" class="pilcrow">¶</a></p>
+<ul class="toc ulEmpty">
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.1.2.1">
+                    <p id="section-toc.1-1.5.2.1.2.1.1"><a href="#section-5.1.1" class="xref">5.1.1</a>.  <a href="#name-by-observing-which-dictiona" class="xref">By Observing Which Dictionary is Used</a><a href="#section-toc.1-1.5.2.1.2.1.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.1.2.2">
+                    <p id="section-toc.1-1.5.2.1.2.2.1"><a href="#section-5.1.2" class="xref">5.1.2</a>.  <a href="#name-by-observing-message-size" class="xref">By Observing Message Size</a><a href="#section-toc.1-1.5.2.1.2.2.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.1.2.3">
+                    <p id="section-toc.1-1.5.2.1.2.3.1"><a href="#section-5.1.3" class="xref">5.1.3</a>.  <a href="#name-by-observing-timing" class="xref">By Observing Timing</a><a href="#section-toc.1-1.5.2.1.2.3.1" class="pilcrow">¶</a></p>
+</li>
+</ul>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.2">
+                <p id="section-toc.1-1.5.2.2.1"><a href="#section-5.2" class="xref">5.2</a>.  <a href="#name-revealing-dictionary-conten" class="xref">Revealing Dictionary Content</a><a href="#section-toc.1-1.5.2.2.1" class="pilcrow">¶</a></p>
+<ul class="toc ulEmpty">
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.2.2.1">
+                    <p id="section-toc.1-1.5.2.2.2.1.1"><a href="#section-5.2.1" class="xref">5.2.1</a>.  <a href="#name-by-observing-message-size-2" class="xref">By Observing Message Size</a><a href="#section-toc.1-1.5.2.2.2.1.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.2.2.2">
+                    <p id="section-toc.1-1.5.2.2.2.2.1"><a href="#section-5.2.2" class="xref">5.2.2</a>.  <a href="#name-in-compression" class="xref">In Compression</a><a href="#section-toc.1-1.5.2.2.2.2.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.2.2.3">
+                    <p id="section-toc.1-1.5.2.2.2.3.1"><a href="#section-5.2.3" class="xref">5.2.3</a>.  <a href="#name-in-decompression" class="xref">In Decompression</a><a href="#section-toc.1-1.5.2.2.2.3.1" class="pilcrow">¶</a></p>
+</li>
+</ul>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.3">
+                <p id="section-toc.1-1.5.2.3.1"><a href="#section-5.3" class="xref">5.3</a>.  <a href="#name-manipulating-message-conten" class="xref">Manipulating Message Content</a><a href="#section-toc.1-1.5.2.3.1" class="pilcrow">¶</a></p>
+<ul class="toc ulEmpty">
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.3.2.1">
+                    <p id="section-toc.1-1.5.2.3.2.1.1"><a href="#section-5.3.1" class="xref">5.3.1</a>.  <a href="#name-by-manipulating-message-con" class="xref">By Manipulating Message Content</a><a href="#section-toc.1-1.5.2.3.2.1.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.3.2.2">
+                    <p id="section-toc.1-1.5.2.3.2.2.1"><a href="#section-5.3.2" class="xref">5.3.2</a>.  <a href="#name-by-manipulating-dictionary-" class="xref">By Manipulating Dictionary Content</a><a href="#section-toc.1-1.5.2.3.2.2.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.3.2.3">
+                    <p id="section-toc.1-1.5.2.3.2.3.1"><a href="#section-5.3.3" class="xref">5.3.3</a>.  <a href="#name-by-manipulating-dictionary-i" class="xref">By Manipulating Dictionary Identifiers</a><a href="#section-toc.1-1.5.2.3.2.3.1" class="pilcrow">¶</a></p>
+</li>
+</ul>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.4">
+                <p id="section-toc.1-1.5.2.4.1"><a href="#section-5.4" class="xref">5.4</a>.  <a href="#name-obfuscating-message-content" class="xref">Obfuscating Message Content</a><a href="#section-toc.1-1.5.2.4.1" class="pilcrow">¶</a></p>
+<ul class="toc ulEmpty">
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.4.2.1">
+                    <p id="section-toc.1-1.5.2.4.2.1.1"><a href="#section-5.4.1" class="xref">5.4.1</a>.  <a href="#name-from-intermediaries" class="xref">From Intermediaries</a><a href="#section-toc.1-1.5.2.4.2.1.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.4.2.2">
+                    <p id="section-toc.1-1.5.2.4.2.2.1"><a href="#section-5.4.2" class="xref">5.4.2</a>.  <a href="#name-multiple-representations" class="xref">Multiple Representations</a><a href="#section-toc.1-1.5.2.4.2.2.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.4.2.3">
+                    <p id="section-toc.1-1.5.2.4.2.3.1"><a href="#section-5.4.3" class="xref">5.4.3</a>.  <a href="#name-additional-data" class="xref">Additional Data</a><a href="#section-toc.1-1.5.2.4.2.3.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.4.2.4">
+                    <p id="section-toc.1-1.5.2.4.2.4.1"><a href="#section-5.4.4" class="xref">5.4.4</a>.  <a href="#name-multiple-interpretations" class="xref">Multiple Interpretations</a><a href="#section-toc.1-1.5.2.4.2.4.1" class="pilcrow">¶</a></p>
+</li>
+</ul>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.5">
+                <p id="section-toc.1-1.5.2.5.1"><a href="#section-5.5" class="xref">5.5</a>.  <a href="#name-tracking-users" class="xref">Tracking Users</a><a href="#section-toc.1-1.5.2.5.1" class="pilcrow">¶</a></p>
+<ul class="toc ulEmpty">
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.5.2.1">
+                    <p id="section-toc.1-1.5.2.5.2.1.1"><a href="#section-5.5.1" class="xref">5.5.1</a>.  <a href="#name-through-dictionary-negotiat" class="xref">Through Dictionary Negotiation</a><a href="#section-toc.1-1.5.2.5.2.1.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.5.2.2">
+                    <p id="section-toc.1-1.5.2.5.2.2.1"><a href="#section-5.5.2" class="xref">5.5.2</a>.  <a href="#name-through-dictionary-retrieva" class="xref">Through Dictionary Retrieval</a><a href="#section-toc.1-1.5.2.5.2.2.1" class="pilcrow">¶</a></p>
+</li>
+</ul>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.6">
+                <p id="section-toc.1-1.5.2.6.1"><a href="#section-5.6" class="xref">5.6</a>.  <a href="#name-denial-of-service-2" class="xref">Denial of Service</a><a href="#section-toc.1-1.5.2.6.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.7">
+                <p id="section-toc.1-1.5.2.7.1"><a href="#section-5.7" class="xref">5.7</a>.  <a href="#name-resource-exhaustion" class="xref">Resource Exhaustion</a><a href="#section-toc.1-1.5.2.7.1" class="pilcrow">¶</a></p>
+<ul class="toc ulEmpty">
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.7.2.1">
+                    <p id="section-toc.1-1.5.2.7.2.1.1"><a href="#section-5.7.1" class="xref">5.7.1</a>.  <a href="#name-resources" class="xref">Resources</a><a href="#section-toc.1-1.5.2.7.2.1.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.7.2.2">
+                    <p id="section-toc.1-1.5.2.7.2.2.1"><a href="#section-5.7.2" class="xref">5.7.2</a>.  <a href="#name-targets" class="xref">Targets</a><a href="#section-toc.1-1.5.2.7.2.2.1" class="pilcrow">¶</a></p>
+</li>
+</ul>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.8">
+                <p id="section-toc.1-1.5.2.8.1"><a href="#section-5.8" class="xref">5.8</a>.  <a href="#name-generating-dictionaries-3" class="xref">Generating Dictionaries</a><a href="#section-toc.1-1.5.2.8.1" class="pilcrow">¶</a></p>
+<ul class="toc ulEmpty">
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.8.2.1">
+                    <p id="section-toc.1-1.5.2.8.2.1.1"><a href="#section-5.8.1" class="xref">5.8.1</a>.  <a href="#name-handling-samples" class="xref">Handling Samples</a><a href="#section-toc.1-1.5.2.8.2.1.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.8.2.2">
+                    <p id="section-toc.1-1.5.2.8.2.2.1"><a href="#section-5.8.2" class="xref">5.8.2</a>.  <a href="#name-tagging-mitigations" class="xref">Tagging Mitigations</a><a href="#section-toc.1-1.5.2.8.2.2.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.8.2.3">
+                    <p id="section-toc.1-1.5.2.8.2.3.1"><a href="#section-5.8.3" class="xref">5.8.3</a>.  <a href="#name-probabilistic-mitigations" class="xref">Probabilistic Mitigations</a><a href="#section-toc.1-1.5.2.8.2.3.1" class="pilcrow">¶</a></p>
+</li>
+</ul>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.5.2.9">
+                <p id="section-toc.1-1.5.2.9.1"><a href="#section-5.9" class="xref">5.9</a>.  <a href="#name-complexity" class="xref">Complexity</a><a href="#section-toc.1-1.5.2.9.1" class="pilcrow">¶</a></p>
+</li>
+</ul>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.6">
+            <p id="section-toc.1-1.6.1"><a href="#section-6" class="xref">6</a>.  <a href="#name-conclusions" class="xref">Conclusions</a><a href="#section-toc.1-1.6.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.7">
+            <p id="section-toc.1-1.7.1"><a href="#section-7" class="xref">7</a>.  <a href="#name-iana-considerations" class="xref">IANA Considerations</a><a href="#section-toc.1-1.7.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.8">
+            <p id="section-toc.1-1.8.1"><a href="#section-8" class="xref">8</a>.  <a href="#name-security-considerations" class="xref">Security Considerations</a><a href="#section-toc.1-1.8.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.9">
+            <p id="section-toc.1-1.9.1"><a href="#section-9" class="xref">9</a>.  <a href="#name-references" class="xref">References</a><a href="#section-toc.1-1.9.1" class="pilcrow">¶</a></p>
+<ul class="toc ulEmpty">
+<li class="toc ulEmpty" id="section-toc.1-1.9.2.1">
+                <p id="section-toc.1-1.9.2.1.1"><a href="#section-9.1" class="xref">9.1</a>.  <a href="#name-normative-references" class="xref">Normative References</a><a href="#section-toc.1-1.9.2.1.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.9.2.2">
+                <p id="section-toc.1-1.9.2.2.1"><a href="#section-9.2" class="xref">9.2</a>.  <a href="#name-other-examples-of-dictionar" class="xref">Other Examples of Dictionary-Like Compression</a><a href="#section-toc.1-1.9.2.2.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.9.2.3">
+                <p id="section-toc.1-1.9.2.3.1"><a href="#section-9.3" class="xref">9.3</a>.  <a href="#name-informative-references" class="xref">Informative References</a><a href="#section-toc.1-1.9.2.3.1" class="pilcrow">¶</a></p>
+</li>
+</ul>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.10">
+            <p id="section-toc.1-1.10.1"><a href="#section-appendix.a" class="xref">Appendix A</a>.  <a href="#name-acknowledgements" class="xref">Acknowledgements</a><a href="#section-toc.1-1.10.1" class="pilcrow">¶</a></p>
+</li>
+<li class="toc ulEmpty" id="section-toc.1-1.11">
+            <p id="section-toc.1-1.11.1"><a href="#section-appendix.b" class="xref"></a><a href="#name-authors-address" class="xref">Author's Address</a><a href="#section-toc.1-1.11.1" class="pilcrow">¶</a></p>
+</li>
+</ul>
+</nav>
+</section>
+</div>
+<div id="intro">
+<section id="section-1">
+      <h2 id="name-introduction">
+<a href="#section-1" class="section-number selfRef">1. </a><a href="#name-introduction" class="section-name selfRef">Introduction</a>
+      </h2>
+<p id="section-1-1"><span class="cref">[TODO]</span><a href="#section-1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="basis">
+<section id="section-2">
+      <h2 id="name-basis">
+<a href="#section-2" class="section-number selfRef">2. </a><a href="#name-basis" class="section-name selfRef">Basis</a>
+      </h2>
+<div id="environments">
+<section id="section-2.1">
+        <h3 id="name-environments">
+<a href="#section-2.1" class="section-number selfRef">2.1. </a><a href="#name-environments" class="section-name selfRef">Environments</a>
+        </h3>
+<p id="section-2.1-1">
+          The security of any use of compression depends greatly on the environment in which it is deployed, and the threats it is subjected to. This document analyzes compression as it might be used by a generic internet protocol, in which:<a href="#section-2.1-1" class="pilcrow">¶</a></p>
+<ul>
+<li id="section-2.1-2.1">
+            Agents exchange messages over possibly-trusted, possibly-authenticated, possibly-encrypted channels, which are vulnerable to some combination of traffic analysis, eavesdropping, and manipulation.<a href="#section-2.1-2.1" class="pilcrow">¶</a>
+</li>
+<li id="section-2.1-2.2">
+            Agents exchange messages with parties they may not trust.<a href="#section-2.1-2.2" class="pilcrow">¶</a>
+</li>
+<li id="section-2.1-2.3">
+            <p id="section-2.1-2.3.1">
+              Agents may take protocol actions (generating, sending, receiving, and interpreting messages) in response to triggers beyond just user action. Some examples include:<a href="#section-2.1-2.3.1" class="pilcrow">¶</a></p>
+<ul><li id="section-2.1-2.3.2.1">
+                Replying automatically to received messages.<a href="#section-2.1-2.3.2.1" class="pilcrow">¶</a>
+</li>
+<li id="section-2.1-2.3.2.2">
+                Relaying or forwarding received messages to other agents (e.g., an SMTP relay).<a href="#section-2.1-2.3.2.2" class="pilcrow">¶</a>
+</li>
+<li id="section-2.1-2.3.2.3">
+                Exchanging messages at the behest of trusted or untrusted code (e.g., trusted: a website codebase generating responses to HTTP requests, untrusted: a website's JavaScript code running in a browser.<a href="#section-2.1-2.3.2.3" class="pilcrow">¶</a>
+</li>
+</ul>
+</li>
+</ul>
+<p id="section-2.1-3">
+          This document aims to enumerate all security risks raised when using compression in this baseline environment. In addition to attempting an exhaustive list of possible security risks, this document will identify desirable properties of the protocol stack and environment in which the compression is used and other methods with which individual concerns can be obviated or mitigated.<a href="#section-2.1-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="sec-props">
+<section id="section-2.2">
+        <h3 id="name-goals">
+<a href="#section-2.2" class="section-number selfRef">2.2. </a><a href="#name-goals" class="section-name selfRef">Goals</a>
+        </h3>
+<p id="section-2.2-1">
+          Security is an abstract goal. It can be decomposed into a number of sub-properties. There are a number of different properties of a protocol which contribute to its overall security. may be desirable to preserve. ... <span class="cref">[TODO]</span> <span>[<a href="#SECURITY-GUIDELINES" class="xref">SECURITY-GUIDELINES</a>]</span> and <span>[<a href="#PRIVACY" class="xref">PRIVACY</a>]</span><a href="#section-2.2-1" class="pilcrow">¶</a></p>
+<div id="sec-props-comms-sec">
+<section id="section-2.2.1">
+          <h4 id="name-communications-security">
+<a href="#section-2.2.1" class="section-number selfRef">2.2.1. </a><a href="#name-communications-security" class="section-name selfRef">Communications Security</a>
+          </h4>
+<div id="sec-props-comms-sec-confidence">
+<section id="section-2.2.1.1">
+            <h5 id="name-confidentiality">
+<a href="#section-2.2.1.1" class="section-number selfRef">2.2.1.1. </a><a href="#name-confidentiality" class="section-name selfRef">Confidentiality</a>
+            </h5>
+<p id="section-2.2.1.1-1"><span class="cref">[TODO]</span><a href="#section-2.2.1.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="sec-props-comms-sec-integrity">
+<section id="section-2.2.1.2">
+            <h5 id="name-integrity">
+<a href="#section-2.2.1.2" class="section-number selfRef">2.2.1.2. </a><a href="#name-integrity" class="section-name selfRef">Integrity</a>
+            </h5>
+<p id="section-2.2.1.2-1"><span class="cref">[TODO]</span><a href="#section-2.2.1.2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="sec-props-comms-sec-auth">
+<section id="section-2.2.1.3">
+            <h5 id="name-authenticity">
+<a href="#section-2.2.1.3" class="section-number selfRef">2.2.1.3. </a><a href="#name-authenticity" class="section-name selfRef">Authenticity</a>
+            </h5>
+<p id="section-2.2.1.3-1"><span class="cref">[TODO]</span><a href="#section-2.2.1.3-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="sec-props-sys-sec">
+<section id="section-2.2.2">
+          <h4 id="name-systems-security">
+<a href="#section-2.2.2" class="section-number selfRef">2.2.2. </a><a href="#name-systems-security" class="section-name selfRef">Systems Security</a>
+          </h4>
+<div id="sec-props-sys-sec-auth">
+<section id="section-2.2.2.1">
+            <h5 id="name-unauthorized-use">
+<a href="#section-2.2.2.1" class="section-number selfRef">2.2.2.1. </a><a href="#name-unauthorized-use" class="section-name selfRef">Unauthorized Use</a>
+            </h5>
+<p id="section-2.2.2.1-1"><span class="cref">[TODO]</span><a href="#section-2.2.2.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="sec-props-sys-sec-inapprop">
+<section id="section-2.2.2.2">
+            <h5 id="name-inappropriate-use">
+<a href="#section-2.2.2.2" class="section-number selfRef">2.2.2.2. </a><a href="#name-inappropriate-use" class="section-name selfRef">Inappropriate Use</a>
+            </h5>
+<p id="section-2.2.2.2-1"><span class="cref">[TODO]</span><a href="#section-2.2.2.2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="sec-props-sys-sec-dos">
+<section id="section-2.2.2.3">
+            <h5 id="name-denial-of-service">
+<a href="#section-2.2.2.3" class="section-number selfRef">2.2.2.3. </a><a href="#name-denial-of-service" class="section-name selfRef">Denial of Service</a>
+            </h5>
+<p id="section-2.2.2.3-1"><span class="cref">[TODO]</span><a href="#section-2.2.2.3-1" class="pilcrow">¶</a></p>
+<p id="section-2.2.2.3-2">These risks are discussed in <a href="#issues-denial-of-service" class="xref">Section 5.6</a>.<a href="#section-2.2.2.3-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="sec-props-priv">
+<section id="section-2.2.3">
+          <h4 id="name-privacy">
+<a href="#section-2.2.3" class="section-number selfRef">2.2.3. </a><a href="#name-privacy" class="section-name selfRef">Privacy</a>
+          </h4>
+<p id="section-2.2.3-1">
+            <span>[<a href="#PRIVACY" class="xref">PRIVACY</a>]</span><a href="#section-2.2.3-1" class="pilcrow">¶</a></p>
+<div id="sec-props-cor">
+<section id="section-2.2.3.1">
+            <h5 id="name-correlation">
+<a href="#section-2.2.3.1" class="section-number selfRef">2.2.3.1. </a><a href="#name-correlation" class="section-name selfRef">Correlation</a>
+            </h5>
+<p id="section-2.2.3.1-1"><span class="cref">[TODO]</span><a href="#section-2.2.3.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="sec-props-ident">
+<section id="section-2.2.3.2">
+            <h5 id="name-identification">
+<a href="#section-2.2.3.2" class="section-number selfRef">2.2.3.2. </a><a href="#name-identification" class="section-name selfRef">Identification</a>
+            </h5>
+<p id="section-2.2.3.2-1"><span class="cref">[TODO]</span><a href="#section-2.2.3.2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="threats">
+<section id="section-2.3">
+        <h3 id="name-threat-model">
+<a href="#section-2.3" class="section-number selfRef">2.3. </a><a href="#name-threat-model" class="section-name selfRef">Threat Model</a>
+        </h3>
+<p id="section-2.3-1">
+          Attackers vary in goals and capabilities along several axes, including the following.<a href="#section-2.3-1" class="pilcrow">¶</a></p>
+<ul>
+<li id="section-2.3-2.1">
+            Their goals.<a href="#section-2.3-2.1" class="pilcrow">¶</a>
+</li>
+<li id="section-2.3-2.2">
+            Their relationship to the target (whether they are trusted, etc.).<a href="#section-2.3-2.2" class="pilcrow">¶</a>
+</li>
+<li id="section-2.3-2.3">
+            Their existing knowledge of the target.<a href="#section-2.3-2.3" class="pilcrow">¶</a>
+</li>
+<li id="section-2.3-2.4">
+            How they can influence the target's behavior.<a href="#section-2.3-2.4" class="pilcrow">¶</a>
+</li>
+<li id="section-2.3-2.5">
+            How they can observe the target's behavior.<a href="#section-2.3-2.5" class="pilcrow">¶</a>
+</li>
+</ul>
+<p id="section-2.3-3">
+          This document draws on the threat model described in <span><a href="https://rfc-editor.org/rfc/rfc3552#section-3.3" class="relref">Section 3.3</a> of [<a href="#SECURITY-GUIDELINES" class="xref">SECURITY-GUIDELINES</a>]</span> and expanded on in <span>[<a href="#I-D.arkko-arch-internet-threat-model" class="xref">I-D.arkko-arch-internet-threat-model</a>]</span>.<a href="#section-2.3-3" class="pilcrow">¶</a></p>
+<div id="threats-passive">
+<section id="section-2.3.1">
+          <h4 id="name-passive-attacks">
+<a href="#section-2.3.1" class="section-number selfRef">2.3.1. </a><a href="#name-passive-attacks" class="section-name selfRef">Passive Attacks</a>
+        </h4>
+</section>
+</div>
+<div id="threats-active">
+<section id="section-2.3.2">
+          <h4 id="name-active-attacks">
+<a href="#section-2.3.2" class="section-number selfRef">2.3.2. </a><a href="#name-active-attacks" class="section-name selfRef">Active Attacks</a>
+        </h4>
+</section>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="compression">
+<section id="section-3">
+      <h2 id="name-compression">
+<a href="#section-3" class="section-number selfRef">3. </a><a href="#name-compression" class="section-name selfRef">Compression</a>
+      </h2>
+<p id="section-3-1"><a href="#section-3-1" class="pilcrow">¶</a></p>
+<div class="artwork art-text alignLeft" id="section-3-2">
+<pre>
+           +------------+   compressed    +--------------+
+message -&gt; | compressor | --&gt; message --&gt; | decompressor | -&gt; message
+           +------------+ representation  +--------------+
+</pre><a href="#section-3-2" class="pilcrow">¶</a>
+</div>
+<div id="compression-components">
+<section id="section-3.1">
+        <h3 id="name-components">
+<a href="#section-3.1" class="section-number selfRef">3.1. </a><a href="#name-components" class="section-name selfRef">Components</a>
+        </h3>
+<p id="section-3.1-1">
+          Compression, as used in an application, consists of four noteworthy components.<a href="#section-3.1-1" class="pilcrow">¶</a></p>
+<div id="compression-components-compressor">
+<section id="section-3.1.1">
+          <h4 id="name-compressor">
+<a href="#section-3.1.1" class="section-number selfRef">3.1.1. </a><a href="#name-compressor" class="section-name selfRef">Compressor</a>
+          </h4>
+<p id="section-3.1.1-1">This component is responsible for transforming <span class="cref">[TODO]</span><a href="#section-3.1.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="compression-components-decompressor">
+<section id="section-3.1.2">
+          <h4 id="name-decompressor">
+<a href="#section-3.1.2" class="section-number selfRef">3.1.2. </a><a href="#name-decompressor" class="section-name selfRef">Decompressor</a>
+          </h4>
+<p id="section-3.1.2-1"><span class="cref">[TODO]</span><a href="#section-3.1.2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="compression-components-message">
+<section id="section-3.1.3">
+          <h4 id="name-message-representation">
+<a href="#section-3.1.3" class="section-number selfRef">3.1.3. </a><a href="#name-message-representation" class="section-name selfRef">Message Representation</a>
+          </h4>
+<p id="section-3.1.3-1">
+            The compressor produces a representation of the message, which is conveyed to the decompressor. While in transport, it is subject to inspection or modification.<a href="#section-3.1.3-1" class="pilcrow">¶</a></p>
+<p id="section-3.1.3-2"><span class="cref">[TODO]</span><a href="#section-3.1.3-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="compression-components-management">
+<section id="section-3.1.4">
+          <h4 id="name-management">
+<a href="#section-3.1.4" class="section-number selfRef">3.1.4. </a><a href="#name-management" class="section-name selfRef">Management</a>
+          </h4>
+<p id="section-3.1.4-1">
+            The host system may take additional actions and/or exchange other data to coordinate the use of this compression scheme. These activities are also subject to observation and interference.<a href="#section-3.1.4-1" class="pilcrow">¶</a></p>
+<p id="section-3.1.4-2"><span class="cref">[TODO]</span><a href="#section-3.1.4-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="dictionaries">
+<section id="section-4">
+      <h2 id="name-dictionaries">
+<a href="#section-4" class="section-number selfRef">4. </a><a href="#name-dictionaries" class="section-name selfRef">Dictionaries</a>
+      </h2>
+<div id="dict-intro">
+<section id="section-4.1">
+        <h3 id="name-introduction-2">
+<a href="#section-4.1" class="section-number selfRef">4.1. </a><a href="#name-introduction-2" class="section-name selfRef">Introduction</a>
+        </h3>
+<p id="section-4.1-1">
+          General-purpose data compression algorithms are designed to achieve good performance on many different kinds of data. However, that general-purpose nature makes them, to a certain extent, jacks of all trades and masters of none: a compressor that has been tuned for a specific use case can always perform better than a generic equivalent.<a href="#section-4.1-1" class="pilcrow">¶</a></p>
+<p id="section-4.1-2">
+          In response, a number of modern compression algorithms (including DEFLATE <span>[<a href="#DEFLATE" class="xref">DEFLATE</a>]</span>, Brotli <span>[<a href="#BROTLI" class="xref">BROTLI</a>]</span>, and Zstandard <span>[<a href="#ZSTD" class="xref">ZSTD</a>]</span>) have developed a generic capability to specialize themselves. In addition to the actual message to be processed, these compressors allow users to provide additional context information, which the compressor and decompressor can use to tailor their internal states to that particular use case. To the extent that this auxiliary data matches the nature of the message being compressed, the compressor can use it to produce a smaller compressed representation of the message. This auxiliary data can include various things, but it has come to be known as a "dictionary."<a href="#section-4.1-2" class="pilcrow">¶</a></p>
+<p id="section-4.1-3">
+          As dictionary-based compression has been adopted, it has been found that its use can present security challenges. This document is a collection of those challenges. As future use cases for dictionaries are contemplated, this document can be used as a checklist to ensure that the protocols, their specifications, and their implementations have been appropriately evaluated against these concerns.<a href="#section-4.1-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="dict-integration">
+<section id="section-4.2">
+        <h3 id="name-integration">
+<a href="#section-4.2" class="section-number selfRef">4.2. </a><a href="#name-integration" class="section-name selfRef">Integration</a>
+        </h3>
+<p id="section-4.2-1">
+          In order to use dictionaries, it is not only the narrow compressor and decompressor components of the application which must change. Dictionaries make compression a stateful operation: systems that use dictionaries must therefore participate in the whole lifecycle of state management.<a href="#section-4.2-1" class="pilcrow">¶</a></p>
+<p id="section-4.2-2">
+          In doing this, systems have a number of degrees of freedom in integration, and the choices they make along those axes are relevant to the security properties of the system. In order to facilitate the discussion of the resulting security properties, this section introduces the mechanisms of dictionary compression, the choices available to users, and surveys notable possible choices for those questions.<a href="#section-4.2-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="dictionary-compression">
+<section id="section-4.3">
+        <h3 id="name-dictionary-compression">
+<a href="#section-4.3" class="section-number selfRef">4.3. </a><a href="#name-dictionary-compression" class="section-name selfRef">Dictionary Compression</a>
+        </h3>
+<p id="section-4.3-1">
+          Classically, compression algorithms operate as stateless, pure functions. In that mode, their output depends solely on the input message (and the algorithm's implementation details). Dictionaries break that paradigm, introducing an additional input to the compression and decompression operations. Compressors may then leverage the contents of that additional input--the dictionary--to produce more compact representations of their inputs.<a href="#section-4.3-1" class="pilcrow">¶</a></p>
+<div class="artwork art-text alignLeft" id="section-4.3-2">
+<pre>
+                 +--------- dictionary ----------+
+                 |                               |
+                 V                               V
+           +------------+   compressed    +--------------+
+message -&gt; | compressor | --&gt; message --&gt; | decompressor | -&gt; message
+           +------------+ representation  +--------------+
+</pre><a href="#section-4.3-2" class="pilcrow">¶</a>
+</div>
+<p id="section-4.3-3">
+          In introducing this other element, the interpretation of the compressed message becomes dependent on the content of the dictionary, and therefore same dictionary that was used to compress a message must be presented at decompression time. In this way, dictionaries are in effect an out-of-band communication or pre-shared key between the compressor and decompressor.<a href="#section-4.3-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="dictionary-contents">
+<section id="section-4.4">
+        <h3 id="name-dictionary-contents">
+<a href="#section-4.4" class="section-number selfRef">4.4. </a><a href="#name-dictionary-contents" class="section-name selfRef">Dictionary Contents</a>
+        </h3>
+<p id="section-4.4-1">
+          In principle, the contents of a dictionary are solely the concern of the compressor and decompressor, and implementations should be free to treat them as opaque blobs. However, when analyzing their security characteristics, it's useful to understand the data that is actually present in a dictionaries.<a href="#section-4.4-1" class="pilcrow">¶</a></p>
+<p id="section-4.4-2">
+          Dictionaries take two broad forms.<a href="#section-4.4-2" class="pilcrow">¶</a></p>
+<div id="dictionary-contents-unstructured">
+<section id="section-4.4.1">
+          <h4 id="name-unstructured-dictionaries">
+<a href="#section-4.4.1" class="section-number selfRef">4.4.1. </a><a href="#name-unstructured-dictionaries" class="section-name selfRef">Unstructured Dictionaries</a>
+          </h4>
+<p id="section-4.4.1-1">
+            Some compressors (e.g., DEFLATE <span>[<a href="#DEFLATE" class="xref">DEFLATE</a>]</span> and Zstandard <span>[<a href="#ZSTD" class="xref">ZSTD</a>]</span>) accept arbitrary, unstructured bytestreams as dictionaries. In these cases, the dictionary is used purely as a buffer in which LZ77-style content matches can be found <span>[<a href="#LZ77" class="xref">LZ77</a>]</span>. That is, when the dictionary contains some sequence of bytes that is also present in the message, the compressor can choose to represent those bytes by referencing them in the dictionary, rather than by representing them literally.<a href="#section-4.4.1-1" class="pilcrow">¶</a></p>
+<p id="section-4.4.1-2">
+            The result of compression with this sort of dictionary is usually functionally equivalent to performing a streaming compression of the concatenation of the dictionary and message and throwing away the first part of the compressed message that represents the dictionary.<a href="#section-4.4.1-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="dictionary-contents-structured">
+<section id="section-4.4.2">
+          <h4 id="name-structured-dictionaries">
+<a href="#section-4.4.2" class="section-number selfRef">4.4.2. </a><a href="#name-structured-dictionaries" class="section-name selfRef">Structured Dictionaries</a>
+          </h4>
+<p id="section-4.4.2-1">
+            Some compressors (e.g., Brotli <span>[<a href="#BROTLI" class="xref">BROTLI</a>]</span> and Zstandard <span><a href="https://rfc-editor.org/rfc/rfc8478#section-5" class="relref">Section 5</a> of [<a href="#ZSTD" class="xref">ZSTD</a>]</span>) accept dictionaries that conform to a specific and defined format. In these cases, the dictionary data can consist of multiple components, each of which is used in different ways.<a href="#section-4.4.2-1" class="pilcrow">¶</a></p>
+<dl class="dlParallel" id="section-4.4.2-2">
+            <dt id="section-4.4.2-2.1">metadata:</dt>
+<dd id="section-4.4.2-2.2">
+              The dictionary may contain metadata that identifies the dictionary. For example, Zstandard dictionaries include a 32-bit integer ID field.<a href="#section-4.4.2-2.2" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-4.4.2-2.3">statistics:</dt>
+<dd id="section-4.4.2-2.4">
+              The dictionary may contain frequency distributions of various kinds of symbols, which the compressor can use to more efficiently encode the corresponding streams instead of using a default frequency distribution.<a href="#section-4.4.2-2.4" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-4.4.2-2.5">initial values:</dt>
+<dd id="section-4.4.2-2.6">
+              For example, Zstandard allows the dictionary to initialize certain parts of the compressor's internal state (in particular, the initial values of Repeated_Offset1, Repeated_Offset2, and Repeated_Offset3) <span><a href="https://rfc-editor.org/rfc/rfc8478#section-5" class="relref">Section 5</a> of [<a href="#ZSTD" class="xref">ZSTD</a>]</span>.<a href="#section-4.4.2-2.6" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-4.4.2-2.7">instructions:</dt>
+<dd id="section-4.4.2-2.8">
+              The dictionary may describe preprocessing or transformation steps to be taken on the input. [TODO: expand]<a href="#section-4.4.2-2.8" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-4.4.2-2.9">corpus content:</dt>
+<dd id="section-4.4.2-2.10">
+              <dl class="dlParallel" id="section-4.4.2-2.10.1">
+                <dt id="section-4.4.2-2.10.1.1">untokenized:</dt>
+<dd id="section-4.4.2-2.10.1.2">
+                  For LZ77-style compressors <span>[<a href="#LZ77" class="xref">LZ77</a>]</span>, the structured dictionaries may still contain unstructured content for the compressor to make matches against.<a href="#section-4.4.2-2.10.1.2" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-4.4.2-2.10.1.3">tokenized:</dt>
+<dd id="section-4.4.2-2.10.1.4">
+                  Alternatively, for LZ78-style compressors <span>[<a href="#LZ78" class="xref">LZ78</a>]</span>, the match content is tokenized (i.e., it consists of a collection of independent strings, serialized in some form).<a href="#section-4.4.2-2.10.1.4" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+</dl>
+</dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</div>
+</section>
+</div>
+<div id="using-dictionaries">
+<section id="section-4.5">
+        <h3 id="name-using-dictionaries">
+<a href="#section-4.5" class="section-number selfRef">4.5. </a><a href="#name-using-dictionaries" class="section-name selfRef">Using Dictionaries</a>
+        </h3>
+<div id="dictionaries-training">
+<section id="section-4.5.1">
+          <h4 id="name-generating-dictionaries">
+<a href="#section-4.5.1" class="section-number selfRef">4.5.1. </a><a href="#name-generating-dictionaries" class="section-name selfRef">Generating Dictionaries</a>
+          </h4>
+<p id="section-4.5.1-1">
+            As noted in <a href="#dictionary-contents-unstructured" class="xref">Section 4.4.1</a>, some compression algorithms can accept arbitrary, unstructured inputs as dictionaries. These unstructured dictionaries do not require an explicit generation step; users can simply repurpose existing messages as dictionaries. This potentially avoids the need to perform additional coordination and communication to distribute purpose-built dictionaries. Compression Dictionaries for HTTP/2 is an example of a protocol that uses existing messages in the protocol as dictionaries <span>[<a href="#I-D.vkrasnov-h2-compression-dictionaries" class="xref">I-D.vkrasnov-h2-compression-dictionaries</a>]</span>.<a href="#section-4.5.1-1" class="pilcrow">¶</a></p>
+<p id="section-4.5.1-2">
+            Alternatively, the dictionary may be a separate object, purpose-built for the task. Generating such a dictionary may be desirable for a number of reasons, including:<a href="#section-4.5.1-2" class="pilcrow">¶</a></p>
+<ul>
+<li id="section-4.5.1-3.1">
+              Building a dictionary is necessary to produce the structure in a structured dictionary.<a href="#section-4.5.1-3.1" class="pilcrow">¶</a>
+</li>
+<li id="section-4.5.1-3.2">
+              Trained dictionaries generally perform better than using raw content. The training process selects the parts of the sample corpus that are useful for compression and discard the parts that are not, producing a more compact and more effective dictionary.<a href="#section-4.5.1-3.2" class="pilcrow">¶</a>
+</li>
+<li id="section-4.5.1-3.3">
+              The training process is an opportunity to sanitize the content that ends up being used as a dictionary, potentially enhancing security and privacy (see <a href="#issues-training" class="xref">Section 5.8</a>).<a href="#section-4.5.1-3.3" class="pilcrow">¶</a>
+</li>
+</ul>
+<p id="section-4.5.1-4">
+            In general, an algorithm (such as the COVER algorithm <span>[<a href="#COVER" class="xref">COVER</a>]</span> used by Zstandard) is run over a corpus of sample messages, which selects the most commonly occurring substrings and collects them as the contents of the dictionary.<a href="#section-4.5.1-4" class="pilcrow">¶</a></p>
+<p id="section-4.5.1-5">
+            Any structured metadata (e.g., symbol distribution statistics) can then be calculated and added. For example, Zstandard then compresses some of the sample messages it was given with the dictionary and aggregates the statistics resulting from those compressions and writes them into the dictionary's header.<a href="#section-4.5.1-5" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="dictionaries-identifying">
+<section id="section-4.5.2">
+          <h4 id="name-identifying-dictionaries">
+<a href="#section-4.5.2" class="section-number selfRef">4.5.2. </a><a href="#name-identifying-dictionaries" class="section-name selfRef">Identifying Dictionaries</a>
+          </h4>
+<p id="section-4.5.2-1">
+            If freedom exists in a system as to which dictionary is to be used for a given message, there must be some way to distinguish which dictionary to use, so that decompressors can use the same one. In practice, this means associating each dictionary with an identifier.<a href="#section-4.5.2-1" class="pilcrow">¶</a></p>
+<p id="section-4.5.2-2">
+            Popular methods to do this include:<a href="#section-4.5.2-2" class="pilcrow">¶</a></p>
+<dl class="dlParallel" id="section-4.5.2-3">
+            <dt id="section-4.5.2-3.1">Identity ID:</dt>
+<dd id="section-4.5.2-3.2">
+              The "identifier" for the dictionary is the dictionary itself. This is not really very popular, since information theory strongly suggests that a compressed message without a dictionary will always be smaller than a message compressed with a dictionary plus the dictionary.<a href="#section-4.5.2-3.2" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-4.5.2-3.3">Arbitrary IDs:</dt>
+<dd id="section-4.5.2-3.4">
+              The scheme associates an arbitrary identifier (e.g., a number or string) with this dictionary. This can have the advantage of being the most compact, but has the disadvantage that it neither describes the content of the dictionary nor where to get it.<a href="#section-4.5.2-3.4" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-4.5.2-3.5">Content-Derived IDs:</dt>
+<dd id="section-4.5.2-3.6">
+              Identifiers that are deterministically derived from the content they identify (such as hashes), when designed well, have the benefit that they can validate the associated dictionary without requiring trusting the dictionary source. (Though they are of course vulnerable to collision attacks.) They have the disadvantage that they do not describe where to source the dictionary. In order to be secure, they may also have to be relatively verbose.<a href="#section-4.5.2-3.6" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-4.5.2-3.7">Location-Based IDs:</dt>
+<dd id="section-4.5.2-3.8">
+              Identifiers of this form (notably, URLs) do not identify the content directly, but rather describe where to get it. They are suitable insofar as that source can be trusted to reliably serve the same content to different participants.<a href="#section-4.5.2-3.8" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+</dl>
+<div id="dictionaries-identifying-existing">
+<section id="section-4.5.2.1">
+            <h5 id="name-existing-systems">
+<a href="#section-4.5.2.1" class="section-number selfRef">4.5.2.1. </a><a href="#name-existing-systems" class="section-name selfRef">Existing Systems</a>
+            </h5>
+<p id="section-4.5.2.1-1">
+              Existing compression schemes have selected the following identification systems:<a href="#section-4.5.2.1-1" class="pilcrow">¶</a></p>
+<dl class="dlParallel" id="section-4.5.2.1-2">
+              <dt id="section-4.5.2.1-2.1">DEFLATE:</dt>
+<dd id="section-4.5.2.1-2.2">
+                DEFLATE writes an Adler32 checksum of the dictionary into its compressed message header and checks it at decompression-time.<a href="#section-4.5.2.1-2.2" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-4.5.2.1-2.3">Brotli:</dt>
+<dd id="section-4.5.2.1-2.4">
+                Brotli always implicitly uses a single static dictionary. As such, no identifier is needed or provided <span>[<a href="#BROTLI" class="xref">BROTLI</a>]</span>.<a href="#section-4.5.2.1-2.4" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-4.5.2.1-2.5">Shared Brotli:</dt>
+<dd id="section-4.5.2.1-2.6">
+                Shared Brotli uses either a 256-bit Highwayhash digest of the dictionary or a direct pointer to the dictionary when it is included in the same compressed stream <span>[<a href="#I-D.vandevenne-shared-brotli-format" class="xref">I-D.vandevenne-shared-brotli-format</a>]</span>.<a href="#section-4.5.2.1-2.6" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-4.5.2.1-2.7">Zstandard:</dt>
+<dd id="section-4.5.2.1-2.8">
+                Zstandard uses 32-bit integers to identify dictionaries <span>[<a href="#ZSTD" class="xref">ZSTD</a>]</span>.<a href="#section-4.5.2.1-2.8" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-4.5.2.1-2.9">SDCH:</dt>
+<dd id="section-4.5.2.1-2.10">
+                SDCH uses a URL to describe how to fetch a dictionary and then a hash (a 96-bit prefix of the SHA-256 digest of the dictionary) in negotiations <span>[<a href="#I-D.lee-sdch-spec" class="xref">I-D.lee-sdch-spec</a>]</span>.<a href="#section-4.5.2.1-2.10" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-4.5.2.1-2.11">CDH2:</dt>
+<dd id="section-4.5.2.1-2.12">
+                Compression Dictionaries for HTTP/2 uses an 8-bit integer <span>[<a href="#I-D.vkrasnov-h2-compression-dictionaries" class="xref">I-D.vkrasnov-h2-compression-dictionaries</a>]</span>.<a href="#section-4.5.2.1-2.12" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</div>
+</section>
+</div>
+<div id="dictionaries-distribution">
+<section id="section-4.5.3">
+          <h4 id="name-distributing-dictionaries">
+<a href="#section-4.5.3" class="section-number selfRef">4.5.3. </a><a href="#name-distributing-dictionaries" class="section-name selfRef">Distributing Dictionaries</a>
+          </h4>
+<p id="section-4.5.3-1">
+            Dictionaries must themselves be made accessible to participants. There are several possible approaches to doing this:<a href="#section-4.5.3-1" class="pilcrow">¶</a></p>
+<dl class="dlParallel" id="section-4.5.3-2">
+            <dt id="section-4.5.3-2.1">static:</dt>
+<dd id="section-4.5.3-2.2">
+              The protocol defines the set of dictionaries. Protocol implementations can statically include or independently generate these dictionaries. No further distribution mechanism is required.<a href="#section-4.5.3-2.2" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-4.5.3-2.3">local:</dt>
+<dd id="section-4.5.3-2.4">
+              When dictionaries are not specified by the protocol, but are derived locally or provided by the user, no dictionary distribution mechanism is required, although a negotiation mechanism might be.<a href="#section-4.5.3-2.4" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-4.5.3-2.5">centralized:</dt>
+<dd id="section-4.5.3-2.6">
+              The set of dictionaries in use by the system changes over time, coordinated by and available from a central authority.<a href="#section-4.5.3-2.6" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-4.5.3-2.7">distributed:</dt>
+<dd id="section-4.5.3-2.8">
+              The set of dictionaries in use by the system changes over time. Some or all participants can generate and publish dictionaries.<a href="#section-4.5.3-2.8" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="dictionaries-selection">
+<section id="section-4.5.4">
+          <h4 id="name-selecting-dictionaries">
+<a href="#section-4.5.4" class="section-number selfRef">4.5.4. </a><a href="#name-selecting-dictionaries" class="section-name selfRef">Selecting Dictionaries</a>
+          </h4>
+<p id="section-4.5.4-1">
+            Related to the above, because the same dictionary must be used to compress and decompress a particular message, it is necessary for the compressor and decompressor to come to an understanding as to which dictionary they will use for a given message, presumably based on selecting which dictionary of those available to both the sender and receiver is most suitable. This selection process can take multiple forms:<a href="#section-4.5.4-1" class="pilcrow">¶</a></p>
+<dl class="dlParallel" id="section-4.5.4-2">
+            <dt id="section-4.5.4-2.1">implicit:</dt>
+<dd id="section-4.5.4-2.2">
+              In situations where the compressor or protocol specifies a single dictionary that is always used (e.g., Brotli <span>[<a href="#BROTLI" class="xref">BROTLI</a>]</span>), no particular selection process is required. Use of the compression scheme at all (which may or may not itself be negotiated) is sufficient to identify the dictionary to use.<a href="#section-4.5.4-2.2" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-4.5.4-2.3">unilateral:</dt>
+<dd id="section-4.5.4-2.4">
+              When the set of dictionaries available to the decompressing agent is known to the compressing agent, the compressing agent may unilaterally select a dictionary to use, and include an identification of that dictionary in either the compressed message itself (e.g., Zstandard's Dictionary_ID field in the frame header) or in protocol metadata (e.g., an HTTP response header). This mechanism can be applied in simple situations, such as when the set of dictionaries used by the protocol is fixed and guaranteed to be immediately available to all participants (such as by being included in the implementation's installation). It can also be applied to a more loose definition of availability, if the decompressing agent is known to be capable of retrieving the dictionary based on the provided identifier, even if it doesn't have the dictionary at present.<a href="#section-4.5.4-2.4" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-4.5.4-2.5">bilateral:</dt>
+<dd id="section-4.5.4-2.6">
+              When the set of dictionaries available to each party is not known to the other, additional messages may be required in order for the compressing agent to select a dictionary available to both both parties. In particular, while other negotiation patterns only require a flow of information from the compressor to the decompressor, which matches the flow of the compressed message itself, this mechanism requires communication in both directions.<a href="#section-4.5.4-2.6" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="dictionaries-usage">
+<section id="section-4.5.5">
+          <h4 id="name-using-dictionaries-2">
+<a href="#section-4.5.5" class="section-number selfRef">4.5.5. </a><a href="#name-using-dictionaries-2" class="section-name selfRef">Using Dictionaries</a>
+          </h4>
+<p id="section-4.5.5-1">
+            Having selected and retrieved a dictionary, it remains to actually present the dictionary to the compressor or decompressor and perform the compression operation.<a href="#section-4.5.5-1" class="pilcrow">¶</a></p>
+<p id="section-4.5.5-2">
+            Dictionaries, whether they possess internal structure or not, are stored and distributed as flat byte streams. In order to be used (especially in compression), most implementations require that a preparation step be performed on the content of the dictionary, parsing it and populating the compressor's internal datastructures.<a href="#section-4.5.5-2" class="pilcrow">¶</a></p>
+<p id="section-4.5.5-3">
+            This materialization of the dictionary can sometimes be performed transparently as part of the compression or decompression operation. Alternatively, some compressors allow this materialization step to be performed separately / explicitly. When this capability is used, the work of processing the serialized dictionary into the compressor's internal datastructures only needs to be performed once, producing a materialized object that be used for many compressions or decompressions. As a result, individual compression and decompression operations can actually be faster than they would be without a dictionary.<a href="#section-4.5.5-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="dictionaries-lifetime">
+<section id="section-4.5.6">
+          <h4 id="name-deleting-dictionaries">
+<a href="#section-4.5.6" class="section-number selfRef">4.5.6. </a><a href="#name-deleting-dictionaries" class="section-name selfRef">Deleting Dictionaries</a>
+          </h4>
+<p id="section-4.5.6-1">
+            Dictionary compression inherently entangles the lifetimes of different pieces of data. When a dictionary is generated, it collects and incorporates information about the data it was trained on (whether that be diffuse statistical information, small common substrings or tokens, or significant contiguous excerpts of the training data). When that dictionary is used to compress a set of messages, it must be retained by the system for as long as the system desires to be able to decompress any of those messages. The lifetime of information derived from many individual messages is thus tied to the lifetime of every message. This introduces complexities for systems that wish to minimize or bound the lifetime of individual pieces of data.<a href="#section-4.5.6-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="issues">
+<section id="section-5">
+      <h2 id="name-risks">
+<a href="#section-5" class="section-number selfRef">5. </a><a href="#name-risks" class="section-name selfRef">Risks</a>
+      </h2>
+<p id="section-5-1">
+        These subsections each describe a class of security issues that have been raised concerning dictionary-based compression and the surrounding protocol mechanisms. Where possible and known, mitigations are described.<a href="#section-5-1" class="pilcrow">¶</a></p>
+<div id="issues-content-recovery">
+<section id="section-5.1">
+        <h3 id="name-revealing-message-content">
+<a href="#section-5.1" class="section-number selfRef">5.1. </a><a href="#name-revealing-message-content" class="section-name selfRef">Revealing Message Content</a>
+        </h3>
+<p id="section-5.1-1">
+          This section discusses attacks that use dictionary compression to recover content in the message.<a href="#section-5.1-1" class="pilcrow">¶</a></p>
+<div id="issues-content-recovery-dict-selection">
+<section id="section-5.1.1">
+          <h4 id="name-by-observing-which-dictiona">
+<a href="#section-5.1.1" class="section-number selfRef">5.1.1. </a><a href="#name-by-observing-which-dictiona" class="section-name selfRef">By Observing Which Dictionary is Used</a>
+          </h4>
+<p id="section-5.1.1-1">
+            Because dictionaries' effectiveness improves the more that they target a specific type of data, a protocol may want to use multiple dictionaries, each targeting a subclass of the system's traffic. Alternatively, a participant may always avoid using a dictionary in certain scenarios, such as when reporting an error. When this is the case, the use of a particular dictionary or not for a message implies that the message belongs to the corresponding subclass of traffic.<a href="#section-5.1.1-1" class="pilcrow">¶</a></p>
+<p id="section-5.1.1-2">
+            The metadata identifying which dictionary was used to compress a message should therefore be protected to the same extent that the message content is protected. (Similarly, the choice of dictionary and any data exchanged in that selection process may reveal other information about the sender and receiver, independent of the content of the specific message being handled, which is discussed in <a href="#issues-tracking-negotiation" class="xref">Section 5.5.1</a>.)<a href="#section-5.1.1-2" class="pilcrow">¶</a></p>
+<p id="section-5.1.1-3">
+            This information may itself be inferred from other signals, and therefore serve as a stepping stone connecting those signals to conclusions about message content.<a href="#section-5.1.1-3" class="pilcrow">¶</a></p>
+<dl class="dlParallel" id="section-5.1.1-4">
+            <dt id="section-5.1.1-4.1">Message Size:</dt>
+<dd id="section-5.1.1-4.2">
+              Observations of message sizes, especially headers or connection negotiations (also discussed in <a href="#issues-content-recovery-msg-size" class="xref">Section 5.1.2</a>), can indicate whether a dictionary was used, or even perhaps which dictionary was used.<a href="#section-5.1.1-4.2" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-5.1.1-4.3">Timing:</dt>
+<dd id="section-5.1.1-4.4">
+              Compression with and without a dictionary may take observably different amounts of time. This is also discussed in <a href="#issues-content-recovery-timing" class="xref">Section 5.1.3</a>.<a href="#section-5.1.1-4.4" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+<dt id="section-5.1.1-4.5">Dictionary Retrieval:</dt>
+<dd id="section-5.1.1-4.6">
+              When dictionaries are retrieved dynamically, another vector for learning this information is simply observing whether a message triggers a fetch for a dictionary, and if so, which dictionary. (This is also discussed in <a href="#issues-tracking-retrieval" class="xref">Section 5.5.2</a>.)
+
+              Protocols should consider decoupling retrieving dictionaries (especially when doing so is easily observable) from using them. For example, SDCH advertises and retrieves dictionaries independently of using them <span>[<a href="#I-D.lee-sdch-spec" class="xref">I-D.lee-sdch-spec</a>]</span>.<a href="#section-5.1.1-4.6" class="pilcrow">¶</a>
+</dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="issues-content-recovery-msg-size">
+<section id="section-5.1.2">
+          <h4 id="name-by-observing-message-size">
+<a href="#section-5.1.2" class="section-number selfRef">5.1.2. </a><a href="#name-by-observing-message-size" class="section-name selfRef">By Observing Message Size</a>
+          </h4>
+<p id="section-5.1.2-1">
+            By manipulating a portion of the message and observing the overall size of the compressed message, the attacker can recover information about the portions of the message not under its control <span>[<a href="#BREACH" class="xref">BREACH</a>]</span> <span>[<a href="#CRIME" class="xref">CRIME</a>]</span> <span>[<a href="#HEIST" class="xref">HEIST</a>]</span>. Given that dictionary-based compression is an extension of dictionary-less compression, it is certainly also vulnerable to this attack.<a href="#section-5.1.2-1" class="pilcrow">¶</a></p>
+<p id="section-5.1.2-2">
+            In particular, the dictionary itself can be used in this sort of attack, to the extent that its contents are attacker-controlled. Note that the ability to control which dictionary is used may indirectly give an attacker the effective ability to modify the contents of the dictionary.<a href="#section-5.1.2-2" class="pilcrow">¶</a></p>
+<p id="section-5.1.2-3">
+            Protocol designers should therefore prevent parties that will not have access to the message content from being able to influence the dictionary used to compress the message.<a href="#section-5.1.2-3" class="pilcrow">¶</a></p>
+<p id="section-5.1.2-4">
+            In settings where the dictionary that is used is derived from previous traffic, especially if previous traffic is directly used as a dictionary, the problem of ensuring that private data and attacker-controlled data grows in complexity. In such a scheme, the attacker may also be able to exercise more control over the content of the dictionary if they can influence the order in which messages are exchanged. Protocols of this sort may wish to place strong controls on the kinds of messages that can be included in the dictionary. See for example <span>[<a href="#I-D.vkrasnov-h2-compression-dictionaries" class="xref">I-D.vkrasnov-h2-compression-dictionaries</a>]</span>.<a href="#section-5.1.2-4" class="pilcrow">¶</a></p>
+<p id="section-5.1.2-5">
+            The remaining question is whether the dictionary constitutes a third class of data (fixed, known data), with security properties and interactions distinct from the two classes previously studied. That is, even if the dictionary is not under attacker control and neither does it contain private information, whether its use can still reveal information about the contents of the message under compression.<a href="#section-5.1.2-5" class="pilcrow">¶</a></p>
+<p id="section-5.1.2-6">
+            In this regard, it's not clear that there is a practical difference between <span class="cref">[TODO]</span><a href="#section-5.1.2-6" class="pilcrow">¶</a></p>
+<div id="issues-content-recovery-msg-size-padding">
+<section id="section-5.1.2.1">
+            <h5 id="name-mitigating-with-padding">
+<a href="#section-5.1.2.1" class="section-number selfRef">5.1.2.1. </a><a href="#name-mitigating-with-padding" class="section-name selfRef">Mitigating with Padding</a>
+            </h5>
+<p id="section-5.1.2.1-1">
+              One possible mitigation of the compressed message size oracle is to add padding to messages, either at the compression level or at the transport layer (e.g., <span>[<a href="#I-D.pironti-tls-length-hiding" class="xref">I-D.pironti-tls-length-hiding</a>]</span>). Even simple padding schemes can significantly inflate the cost of mounting such an attack, if not mitigate it completely.<a href="#section-5.1.2.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="issues-content-recovery-msg-size-separating">
+<section id="section-5.1.2.2">
+            <h5 id="name-mitigating-by-separating-co">
+<a href="#section-5.1.2.2" class="section-number selfRef">5.1.2.2. </a><a href="#name-mitigating-by-separating-co" class="section-name selfRef">Mitigating by Separating Content</a>
+            </h5>
+<p id="section-5.1.2.2-1">
+              Another possible strategy to mitigate this attack is to avoid letting attacker-controlled data be matched against private data. This can be accomplished by avoiding compressing one or the other, or by compressing them independently of each other. See, e.g., <span>[<a href="#CLOUDFLARE-NO-COMPRESS" class="xref">CLOUDFLARE-NO-COMPRESS</a>]</span>.<a href="#section-5.1.2.2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="issues-content-recovery-msg-size-ratelimiting">
+<section id="section-5.1.2.3">
+            <h5 id="name-mitigating-by-avoiding-repe">
+<a href="#section-5.1.2.3" class="section-number selfRef">5.1.2.3. </a><a href="#name-mitigating-by-avoiding-repe" class="section-name selfRef">Mitigating by Avoiding Repeated Compressions</a>
+            </h5>
+<p id="section-5.1.2.3-1">
+              A crucial feature of these attacks is that they require the message under attack to be re-compressed many times (proportional to the amount of information being extracted). The attack can therefore be mitigated either by limiting the number of times the same message can be compressed (rate-limiting), or by making sure that it is not the same message that is compressed every time.<a href="#section-5.1.2.3-1" class="pilcrow">¶</a></p>
+<p id="section-5.1.2.3-2">
+              That is to say, these attacks are most effective when the attacker-controlled data is the only thing that is changing between compressions. Changing or randomizing content (ideally, including the secrets in question) in the message on each compression can make it much harder to extract information.<a href="#section-5.1.2.3-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="issues-content-recovery-timing">
+<section id="section-5.1.3">
+          <h4 id="name-by-observing-timing">
+<a href="#section-5.1.3" class="section-number selfRef">5.1.3. </a><a href="#name-by-observing-timing" class="section-name selfRef">By Observing Timing</a>
+          </h4>
+<p id="section-5.1.3-1">
+            Timing is another classic side-channel through which information can leak. An attacker could potentially observe the time taken during compression or decompression, and draw conclusions about the contents of a message. As discussed in <a href="#issues-dos-resources-compute-compression" class="xref">Section 5.7.1.3.1</a>, it is possible that a dictionary could affect the efficiency of compression and decompression.<a href="#section-5.1.3-1" class="pilcrow">¶</a></p>
+<p id="section-5.1.3-2">
+            In addition, timing can act as a vector for extracting information from another side-channel. As described in the HEIST attack <span>[<a href="#HEIST" class="xref">HEIST</a>]</span>, compression ratio information can be leaked by counting round-trip latencies.<a href="#section-5.1.3-2" class="pilcrow">¶</a></p>
+<p id="section-5.1.3-3">
+            Alternatively, while compression and decompression are usually relatively fast and fairly content-insensitive operations, retrieving and initializing a dictionary might be a high-latency operation, and therefore may be identifiable by observing timing. Timing is therefore another potential avenue to observe which dictionary is used, which may in turn reveal information about the message being processed (<a href="#issues-content-recovery-dict-selection" class="xref">Section 5.1.1</a>).<a href="#section-5.1.3-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="issues-content-recovery-dictionary">
+<section id="section-5.2">
+        <h3 id="name-revealing-dictionary-conten">
+<a href="#section-5.2" class="section-number selfRef">5.2. </a><a href="#name-revealing-dictionary-conten" class="section-name selfRef">Revealing Dictionary Content</a>
+        </h3>
+<p id="section-5.2-1">
+          This section investigates the ability to leverage dictionary-based compression to reveal data other than the message content being compressed (i.e., revealing content used as the dictionary). Note that this is only of interest when there are secrets in the dictionary, which violates the common model that is mostly analyzed in this document, in which the dictionary is assumed to be a shared, public resource.<a href="#section-5.2-1" class="pilcrow">¶</a></p>
+<p id="section-5.2-2">
+          In systems with multiple privacy domains, the ability to nominate arbitrary resources in that system as dictionaries poses a risk.<a href="#section-5.2-2" class="pilcrow">¶</a></p>
+<p id="section-5.2-3">
+          Protocol designers and implementors should ensure that compressing and decompressing agents cannot use as dictionaries resources from privacy domains that either agent does not have access to.<a href="#section-5.2-3" class="pilcrow">¶</a></p>
+<p id="section-5.2-4">
+          A corollary is that a transport system that mixes resources from multiple privacy domains into the same compression context through dictionary-based compression should not reveal the compressed representation of messages (or information derived from the compressed representation, such as its size) to other components of the system that are only trusted in a particular privacy domain.<a href="#section-5.2-4" class="pilcrow">¶</a></p>
+<div id="issues-content-recovery-dictionary-msg-size">
+<section id="section-5.2.1">
+          <h4 id="name-by-observing-message-size-2">
+<a href="#section-5.2.1" class="section-number selfRef">5.2.1. </a><a href="#name-by-observing-message-size-2" class="section-name selfRef">By Observing Message Size</a>
+          </h4>
+<p id="section-5.2.1-1">
+            Analogously to <a href="#issues-content-recovery-msg-size" class="xref">Section 5.1.2</a>, an attacker can exploit knowledge about the contents of a message and its compressed size to draw conclusions about the contents of the dictionary.<a href="#section-5.2.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="issues-content-recovery-dictionary-compression">
+<section id="section-5.2.2">
+          <h4 id="name-in-compression">
+<a href="#section-5.2.2" class="section-number selfRef">5.2.2. </a><a href="#name-in-compression" class="section-name selfRef">In Compression</a>
+          </h4>
+<p id="section-5.2.2-1">
+            If an attacker can inspect the compressed representation of a message, they may be able to draw conclusions about the contents of the dictionary that was used to compress it. This is especially the case if the attacker knows the original message that was compressed (i.e., a known-plaintext attack) or if the attacker can supply the message to be compressed (i.e., a chosen-plaintext attack), and is helped if the attacker can cause the message to be compressed multiple times while varying some aspect of the compression.<a href="#section-5.2.2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="issues-content-recovery-dictionary-decompression">
+<section id="section-5.2.3">
+          <h4 id="name-in-decompression">
+<a href="#section-5.2.3" class="section-number selfRef">5.2.3. </a><a href="#name-in-decompression" class="section-name selfRef">In Decompression</a>
+          </h4>
+<p id="section-5.2.3-1">
+            In compression schemes that support the use of dictionaries, and especially unstructured dictionaries, it is possible to craft compressed messages independent of a dictionary in such a way that, when decompressed with a provided dictionary, the decompressed message that is produced will reveal information about the contents of the dictionary that was not known by the compressor (possibly trivially, by directly reproducing some or all of the dictionary's contents).<a href="#section-5.2.3-1" class="pilcrow">¶</a></p>
+<p id="section-5.2.3-2">
+            Consider a protocol that allows a compressing agent to freely identify any other resource in the system as the dictionary for a message. The compressing agent could select as a dictionary some resource to which the decompressing agent has access, but to which it does not. Without access to that resource, it could nonetheless generate a compressed message the effect of which would be to reproduce that resource in part or in its entirety. This message, decompressed by the target, would cause a resource in the compressing agent's trust domain to appear to have the contents of a resource it does not itself have access to.<a href="#section-5.2.3-2" class="pilcrow">¶</a></p>
+<p id="section-5.2.3-3">
+            This could cause the decompressing agent to take some action that the compressing agent would not otherwise have had the authority to initiate. Alternatively, with some additional mechanism, the compressing agent could then cause the decompressing agent to reveal the uncompressed message (i.e., the selected third-party resource) back to the compressing agent.<a href="#section-5.2.3-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="issues-content-manipulation">
+<section id="section-5.3">
+        <h3 id="name-manipulating-message-conten">
+<a href="#section-5.3" class="section-number selfRef">5.3. </a><a href="#name-manipulating-message-conten" class="section-name selfRef">Manipulating Message Content</a>
+        </h3>
+<p id="section-5.3-1">
+          When the decompressing agent uses a different dictionary to decompress a message than was used to compress the message (which is possible due to confusion on the part of either the compressing or decompressing agent), the reconstituted message produced by decompression may differ from the original message the compressing agent intended.<a href="#section-5.3-1" class="pilcrow">¶</a></p>
+<p id="section-5.3-2">
+          An attacker that can induce this situation can therefore use dictionary compression to manipulate the perceived content of messages, even when they cannot directly manipulate the contents of the messages themselves.<a href="#section-5.3-2" class="pilcrow">¶</a></p>
+<p id="section-5.3-3">
+          A particular implication of this is that a compressed message may have multiple interpretations. In one context (with one dictionary), the message can be constructed so as to appear benign or to pass a validation or authentication step when decompressed. Later, if a different component or agent can be induced to decompress the same message with a different dictionary, the reconstructed message may be completely different.<a href="#section-5.3-3" class="pilcrow">¶</a></p>
+<p id="section-5.3-4">
+          A general mitigation against this attack is to specify mechanisms to validate the integrity of the message. In particular, it may be desirable to validate the ultimate, uncompressed message, rather than validating the various components that the decompressing agent relies on to reconstitute the uncompressed message--the compressed message, the metadata identifying the dictionary, the associated dictionary contents, etc. (However, this has its own problems <span>[<a href="#ENCRYPT-THEN-AUTHENTICATE" class="xref">ENCRYPT-THEN-AUTHENTICATE</a>]</span>.)<a href="#section-5.3-4" class="pilcrow">¶</a></p>
+<div id="issues-content-manipulation-message-contents">
+<section id="section-5.3.1">
+          <h4 id="name-by-manipulating-message-con">
+<a href="#section-5.3.1" class="section-number selfRef">5.3.1. </a><a href="#name-by-manipulating-message-con" class="section-name selfRef">By Manipulating Message Content</a>
+          </h4>
+<p id="section-5.3.1-1">
+            The degenerate version of this attack is to manipulate the uncompressed message by directly manipulating the compressed representation of the message. In such a scenario, the presence or absence of a dictionary is irrelevant. In most cases, this attack is defended against by some scheme that protects the integrity of the compressed message.<a href="#section-5.3.1-1" class="pilcrow">¶</a></p>
+<p id="section-5.3.1-2">
+            However, it is useful to point this attack out, as the other attacks in this space aim to achieve the same result indirectly, and may do so by exploiting protocols which protect the integrity of the compressed message, but perhaps not its metadata describing which dictionary to use nor the contents of that dictionary, such as might arise particularly if dictionary-based compression is an extension to an existing protocol.<a href="#section-5.3.1-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="issues-content-manipulation-dictionary-contents">
+<section id="section-5.3.2">
+          <h4 id="name-by-manipulating-dictionary-">
+<a href="#section-5.3.2" class="section-number selfRef">5.3.2. </a><a href="#name-by-manipulating-dictionary-" class="section-name selfRef">By Manipulating Dictionary Content</a>
+          </h4>
+<p id="section-5.3.2-1">
+            One possible avenue for this kind of attack is to cause the compressing agent and decompressing agent to have differing views of the same dictionary (whether by manipulating a participant's local copy or by causing a fetch to return different results for different users or otherwise).<a href="#section-5.3.2-1" class="pilcrow">¶</a></p>
+<p id="section-5.3.2-2">
+            Protocol designers should therefore take care to protect the integrity of dictionaries. Two broad strategies exist to do so.<a href="#section-5.3.2-2" class="pilcrow">¶</a></p>
+<div id="issues-content-manipulation-validating-dictionary-contents">
+<section id="section-5.3.2.1">
+            <h5 id="name-mitigating-by-validating-di">
+<a href="#section-5.3.2.1" class="section-number selfRef">5.3.2.1. </a><a href="#name-mitigating-by-validating-di" class="section-name selfRef">Mitigating by Validating Dictionary Contents</a>
+            </h5>
+<p id="section-5.3.2.1-1">
+              In the first, the identifier for the dictionary may itself be used to validate the contents that are retrieved, if the identifier scheme includes a cryptographically secure digest of the identified dictionary's contents (see <a href="#dictionaries-identifying" class="xref">Section 4.5.2</a>). Alternatively, even if the identifier itself does not provide for , designers should specify other mechanisms to ensure the integrity and correctness of dictionaries (signatures, checksums, etc.). See for example schemes like Subresource Integrity <span>[<a href="#SRI" class="xref">SRI</a>]</span>.<a href="#section-5.3.2.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="issues-content-manipulation-validating-dictionary-sources">
+<section id="section-5.3.2.2">
+            <h5 id="name-mitigating-by-validating-dic">
+<a href="#section-5.3.2.2" class="section-number selfRef">5.3.2.2. </a><a href="#name-mitigating-by-validating-dic" class="section-name selfRef">Mitigating by Validating Dictionary Sources</a>
+            </h5>
+<p id="section-5.3.2.2-1">
+              Alternatively, participants can rely on a secure chain of custody from a trusted source. ... <span class="cref">[TODO]</span><a href="#section-5.3.2.2-1" class="pilcrow">¶</a></p>
+<p id="section-5.3.2.2-2">
+              In practice, it is probably advisable to implement both mitigations in some form.<a href="#section-5.3.2.2-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="issues-content-manipulation-dictionary-identifiers">
+<section id="section-5.3.3">
+          <h4 id="name-by-manipulating-dictionary-i">
+<a href="#section-5.3.3" class="section-number selfRef">5.3.3. </a><a href="#name-by-manipulating-dictionary-i" class="section-name selfRef">By Manipulating Dictionary Identifiers</a>
+          </h4>
+<p id="section-5.3.3-1">
+            Another similar attack is to cause the different agents to have differing views of which dictionary to use. That is, even if the integrities of compressed messages and dictionary contents are protected, if the association between one and the other can be manipulated, the same effect can be achieved.<a href="#section-5.3.3-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="issues-content-obfuscation">
+<section id="section-5.4">
+        <h3 id="name-obfuscating-message-content">
+<a href="#section-5.4" class="section-number selfRef">5.4. </a><a href="#name-obfuscating-message-content" class="section-name selfRef">Obfuscating Message Content</a>
+        </h3>
+<p id="section-5.4-1">
+          This section discusses attacks that obfuscate a malicious response's content through the use of dictionary-based compression.<a href="#section-5.4-1" class="pilcrow">¶</a></p>
+<div id="issues-content-obfuscation-from-intermediaries">
+<section id="section-5.4.1">
+          <h4 id="name-from-intermediaries">
+<a href="#section-5.4.1" class="section-number selfRef">5.4.1. </a><a href="#name-from-intermediaries" class="section-name selfRef">From Intermediaries</a>
+          </h4>
+<p id="section-5.4.1-1">
+            Various internet protocols exchange messages through intermediaries which inspect or modify the traffic as it passes by (proxies, caches, firewalls, etc.), sometimes for reasons that include security. If the compressing and decompressing agents on a connection use a dictionary to compress the messages they exchange, and the intermediaries between them are not themselves capable of processing messages compressed this way, the intermediaries may be prevented from being able to inspect the traffic, which may harm their ability to detect and filter malicious traffic.<a href="#section-5.4.1-1" class="pilcrow">¶</a></p>
+<p id="section-5.4.1-2">
+            In practice, the relevance of this concern is questionable. Intermediaries of this form <span>[<a href="#PERVASIVE-MONITORING" class="xref">PERVASIVE-MONITORING</a>]</span> can be more harmful than they are beneficial to the security of participants and their traffic. Many protocols are moving towards end-to-end encrypted models that preclude intermediaries from interacting with messages in this way.<a href="#section-5.4.1-2" class="pilcrow">¶</a></p>
+<p id="section-5.4.1-3">
+            Nonetheless, designers of protocols that involve intermediaries that might not support dictionary based compression should give those intermediaries the ability to downgrade the message exchange to not use dictionaries. Intermediaries which inspect messages in the course of their business should either implement the dictionary based compression scheme in question or downgrade the message exchange to avoid its use.<a href="#section-5.4.1-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="issues-content-obfuscation-multiple-representations">
+<section id="section-5.4.2">
+          <h4 id="name-multiple-representations">
+<a href="#section-5.4.2" class="section-number selfRef">5.4.2. </a><a href="#name-multiple-representations" class="section-name selfRef">Multiple Representations</a>
+          </h4>
+<p id="section-5.4.2-1">
+            Although the majority (if not the entirety) of compression schemes do not guarantee determinism in compression, many implementations are deterministic in practice (under fixed parameters). Experience has demonstrated that this state of affairs sometimes entices implementors into confusing equality-of-message comparison with equality-of-representation comparison. Representing the same message in a new way can therefore violate assumptions and potentially be used as a vector for exploitation. Dictionaries potentially contribute to this issue, by introducing a new vector for non-determinacy in the compressed representation of a message.<a href="#section-5.4.2-1" class="pilcrow">¶</a></p>
+<p id="section-5.4.2-2">
+            Users of compression should therefore avoid assumptions that a message will always be transformed into the same compressed representation.<a href="#section-5.4.2-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="issues-content-obfuscation-additional-data">
+<section id="section-5.4.3">
+          <h4 id="name-additional-data">
+<a href="#section-5.4.3" class="section-number selfRef">5.4.3. </a><a href="#name-additional-data" class="section-name selfRef">Additional Data</a>
+          </h4>
+<p id="section-5.4.3-1">
+            Compression can also be a vehicle for steganography. Unlike the other kinds of obfuscation discussed in this section, in which compression is used to obscure the message it represents, this use of compression smuggles some other, hidden message inside the compressed representation of a benign host message. This capability relies on the same lack of determinism in compression as above: because there are usually many valid compressed representations of a particular message, it is possible to imbue meaning to the choice of one representation over another. Information conveyed this way is invisible to a consumer that interacts with only the decompressed message (except, again, via side-channels like those discussed in <a href="#issues-content-recovery" class="xref">Section 5.1</a>), but can be retrieved by any party that can inspect the raw compressed message.<a href="#section-5.4.3-1" class="pilcrow">¶</a></p>
+<div id="issues-content-obfuscation-additional-data-auxiliary-data">
+<section id="section-5.4.3.1">
+            <h5 id="name-explicit-auxiliary-data">
+<a href="#section-5.4.3.1" class="section-number selfRef">5.4.3.1. </a><a href="#name-explicit-auxiliary-data" class="section-name selfRef">Explicit Auxiliary Data</a>
+            </h5>
+<p id="section-5.4.3.1-1">
+              Some compression formats provide features that allow the user to explicitly embed arbitrary data that is independent of the represented message. For example, Zstandard specifies a "Skippable Frame", which can contain arbitrary data and which the decompressor ignores.<a href="#section-5.4.3.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="issues-content-obfuscation-additional-data-compression-choices">
+<section id="section-5.4.3.2">
+            <h5 id="name-choices-in-compression">
+<a href="#section-5.4.3.2" class="section-number selfRef">5.4.3.2. </a><a href="#name-choices-in-compression" class="section-name selfRef">Choices in Compression</a>
+            </h5>
+<p id="section-5.4.3.2-1">
+              A more complicated approach is to use the data that represents the message itself. Some examples of choices that could be used<a href="#section-5.4.3.2-1" class="pilcrow">¶</a></p>
+<ul>
+<li id="section-5.4.3.2-2.1">
+                Overall compression choices. E.g., whether optional features, like checksums or dictionaries are used.<a href="#section-5.4.3.2-2.1" class="pilcrow">¶</a>
+</li>
+<li id="section-5.4.3.2-2.2">
+                For LZ-style compressors, there is often a great deal of freedom in the selection of matches.<a href="#section-5.4.3.2-2.2" class="pilcrow">¶</a>
+</li>
+<li id="section-5.4.3.2-2.3">
+                For entropy codes, the frequency distribution used to encode the message.<a href="#section-5.4.3.2-2.3" class="pilcrow">¶</a>
+</li>
+<li id="section-5.4.3.2-2.4">
+                For block-based compressors, the points at which block boundaries are inserted. This approach is noteworthy, since unlike the rest, these block boundaries are sometimes exposed to users as stopping points as they perform a streaming decompression. They might therefore survive naive recompression.<a href="#section-5.4.3.2-2.4" class="pilcrow">¶</a>
+</li>
+</ul>
+</section>
+</div>
+<div id="issues-content-obfuscation-additional-data-mitigation">
+<section id="section-5.4.3.3">
+            <h5 id="name-mitigation">
+<a href="#section-5.4.3.3" class="section-number selfRef">5.4.3.3. </a><a href="#name-mitigation" class="section-name selfRef">Mitigation</a>
+            </h5>
+<p id="section-5.4.3.3-1">
+              Environments in which the piggybacking of covert data is a concern may wish to decompress and then re-compress messages they relay.<a href="#section-5.4.3.3-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="issues-content-obfuscation-multiple-interpretations">
+<section id="section-5.4.4">
+          <h4 id="name-multiple-interpretations">
+<a href="#section-5.4.4" class="section-number selfRef">5.4.4. </a><a href="#name-multiple-interpretations" class="section-name selfRef">Multiple Interpretations</a>
+          </h4>
+<p id="section-5.4.4-1">
+            It is possible for a single byte-string to conform multiple formats.  can conform to more than one format. An attacker that can cause the recipient to that was induced to parse the message as <span class="cref">[TODO]</span><a href="#section-5.4.4-1" class="pilcrow">¶</a></p>
+<p id="section-5.4.4-2">
+            The most well-known example of this attack is probably ZIP files <span>[<a href="#ZIP" class="xref">ZIP</a>]</span>, which permit arbitrary prefixes data, making them trivially polymorphic with any format that can be structured to permit arbitrary trailing data.<a href="#section-5.4.4-2" class="pilcrow">¶</a></p>
+<p id="section-5.4.4-3">
+            Applications should avoid relying on the content of a message to deduce how to interpret it. When an application can handle messages of multiple formats (particularly, compressed or uncompressed), explicit metadata should be attached, describing the format and encoding of the message content.<a href="#section-5.4.4-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="issues-tracking">
+<section id="section-5.5">
+        <h3 id="name-tracking-users">
+<a href="#section-5.5" class="section-number selfRef">5.5. </a><a href="#name-tracking-users" class="section-name selfRef">Tracking Users</a>
+        </h3>
+<p id="section-5.5-1">
+          This section discusses attacks that identify users through their negotiation and use of dictionaries.<a href="#section-5.5-1" class="pilcrow">¶</a></p>
+<p id="section-5.5-2">
+          Like any other protocol extension or option, the use or advertisement of dictionaries, may allow observers to distinguish participants that do and do not support the feature.<a href="#section-5.5-2" class="pilcrow">¶</a></p>
+<div id="issues-tracking-negotiation">
+<section id="section-5.5.1">
+          <h4 id="name-through-dictionary-negotiat">
+<a href="#section-5.5.1" class="section-number selfRef">5.5.1. </a><a href="#name-through-dictionary-negotiat" class="section-name selfRef">Through Dictionary Negotiation</a>
+          </h4>
+<p id="section-5.5.1-1">
+            In systems which distribute dictionaries dynamically, a participant or observer may be able to learn about the past actions of other participants by observing the dictionaries they advertise or select.<a href="#section-5.5.1-1" class="pilcrow">¶</a></p>
+<p id="section-5.5.1-2">
+            For example, if a user exchanged messages with some site (www.mybank.com), and in doing so acquired dictionaries published by that operator, and then sometime later negotiated a connection with some other site (www.curiousaboutyou.com), in which the user advertised the dictionaries in their possession, the second operator could reasonably conclude that the user had a bank account at MyBank.<a href="#section-5.5.1-2" class="pilcrow">¶</a></p>
+<p id="section-5.5.1-3">
+            Designers of protocols that use dynamically distributed and negotiated dictionaries should therefore take care that dictionaries distributed in one privacy domain are not advertised or used in others without reason.<a href="#section-5.5.1-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="issues-tracking-retrieval">
+<section id="section-5.5.2">
+          <h4 id="name-through-dictionary-retrieva">
+<a href="#section-5.5.2" class="section-number selfRef">5.5.2. </a><a href="#name-through-dictionary-retrieva" class="section-name selfRef">Through Dictionary Retrieval</a>
+          </h4>
+<p id="section-5.5.2-1">
+            The distributor of a dictionary may also be able track the propagation of traffic amongst participants as it receives requests for a particular dictionary, especially if it can collude with the party that generated that message to use a unique dictionary identifier.<a href="#section-5.5.2-1" class="pilcrow">¶</a></p>
+<p id="section-5.5.2-2">
+            Dictionaries that are dynamically fetched should therefore be fetched from the same privacy domain they are used in.<a href="#section-5.5.2-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="issues-denial-of-service">
+<section id="section-5.6">
+        <h3 id="name-denial-of-service-2">
+<a href="#section-5.6" class="section-number selfRef">5.6. </a><a href="#name-denial-of-service-2" class="section-name selfRef">Denial of Service</a>
+        </h3>
+<p id="section-5.6-1">
+          Because dictionary-based compression introduces additional dependencies to the processes of generating and interpreting messages, an attacker that cause those dependencies to be unavailable can potentially cause participants to fail to process messages.<a href="#section-5.6-1" class="pilcrow">¶</a></p>
+<p id="section-5.6-2">
+          Protocols that use dictionary-based compression, especially when the dictionaries are retrieved in ways that could fail, should be prepared to gracefully degrade when those fetches fail. Designers may consider whether messages should only be compressed with dictionaries known to already be in the possession of the recipients.<a href="#section-5.6-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="issues-resource-exhaustion">
+<section id="section-5.7">
+        <h3 id="name-resource-exhaustion">
+<a href="#section-5.7" class="section-number selfRef">5.7. </a><a href="#name-resource-exhaustion" class="section-name selfRef">Resource Exhaustion</a>
+        </h3>
+<p id="section-5.7-1">
+          This section discusses attacks that use dictionaries and dictionary-based compression to induce failures through the exhaustion of various resources.<a href="#section-5.7-1" class="pilcrow">¶</a></p>
+<p id="section-5.7-2">
+          Aside from more specific concerns and corresponding protections discussed in the following sections, implementors should take care to apply at least the same resource usage constraints to dictionaries that they do to the other traffic they handle. Stronger constraints may be warranted, in fact, since the goal of dictionaries is to lower total resource consumption.<a href="#section-5.7-2" class="pilcrow">¶</a></p>
+<div id="issues-dos-resources">
+<section id="section-5.7.1">
+          <h4 id="name-resources">
+<a href="#section-5.7.1" class="section-number selfRef">5.7.1. </a><a href="#name-resources" class="section-name selfRef">Resources</a>
+          </h4>
+<div id="issues-dos-resources-network">
+<section id="section-5.7.1.1">
+            <h5 id="name-bandwidth">
+<a href="#section-5.7.1.1" class="section-number selfRef">5.7.1.1. </a><a href="#name-bandwidth" class="section-name selfRef">Bandwidth</a>
+            </h5>
+<p id="section-5.7.1.1-1">
+              Attacks of this form cause the target to consume their network resources, resulting in expense and degradation of service.<a href="#section-5.7.1.1-1" class="pilcrow">¶</a></p>
+<div id="issues-dos-resources-network-msg-size">
+<section id="section-5.7.1.1.1">
+              <h6 id="name-messages">
+<a href="#section-5.7.1.1.1" class="section-number selfRef">5.7.1.1.1. </a><a href="#name-messages" class="section-name selfRef">Messages</a>
+              </h6>
+<p id="section-5.7.1.1.1-1">
+                If dictionaries can be used to make the compressed representation of messages artificially large, it may be possible to cause normal traffic to consume disproportionately large bandwidth. With existing dictionary schemes, this is unlikely.<a href="#section-5.7.1.1.1-1" class="pilcrow">¶</a></p>
+<p id="section-5.7.1.1.1-2">
+                The reverse is also potentially dangerous, though. Systems that are accustomed to using dictionary-based compression (and whose resources are allocated according to the efficiencies achieved thereby) may be vulnerable to resource exhaustion when subjected to downgrade attacks. If an attacker can force the system to fall back to not using dictionaries, or to using bad dictionaries, or to not using compression at all, the system may exceed its allocated network resources.<a href="#section-5.7.1.1.1-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="issues-dos-resources-network-dicts">
+<section id="section-5.7.1.1.2">
+              <h6 id="name-dictionaries-2">
+<a href="#section-5.7.1.1.2" class="section-number selfRef">5.7.1.1.2. </a><a href="#name-dictionaries-2" class="section-name selfRef">Dictionaries</a>
+              </h6>
+<p id="section-5.7.1.1.2-1">
+                In protocols in which dictionaries are distributed dynamically, it may be possible to cause a target to repeatedly attempt to fetch dictionaries, whether by causing dictionary fetches to fail, triggering retries, or by causing the target to use many new dictionaries that it must then load.<a href="#section-5.7.1.1.2-1" class="pilcrow">¶</a></p>
+<p id="section-5.7.1.1.2-2">
+                Since dictionaries can be quite large relative to the messages they are used to compress, this could potentially be an effective amplification attack.<a href="#section-5.7.1.1.2-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="issues-dos-resources-storage">
+<section id="section-5.7.1.2">
+            <h5 id="name-storage">
+<a href="#section-5.7.1.2" class="section-number selfRef">5.7.1.2. </a><a href="#name-storage" class="section-name selfRef">Storage</a>
+            </h5>
+<p id="section-5.7.1.2-1">
+              Attacks of this form target the storage resources of a participant (any of main memory, cache, disk space, etc.).<a href="#section-5.7.1.2-1" class="pilcrow">¶</a></p>
+<div id="issues-dos-resources-storage-msg-size">
+<section id="section-5.7.1.2.1">
+              <h6 id="name-message-size">
+<a href="#section-5.7.1.2.1" class="section-number selfRef">5.7.1.2.1. </a><a href="#name-message-size" class="section-name selfRef">Message Size</a>
+              </h6>
+<p id="section-5.7.1.2.1-1">
+                The same concerns apply here as in <a href="#issues-dos-resources-network-msg-size" class="xref">Section 5.7.1.1.1</a>.<a href="#section-5.7.1.2.1-1" class="pilcrow">¶</a></p>
+<p id="section-5.7.1.2.1-2">
+                Additionally, if dictionaries can be used to make the compressed representation of a message extremely small relative to the its uncompressed size, they may play a role in enabling a "zip bomb" type attack, in which a specially crafted, small (and therefore cheap to send) message causes the recipient to consume a huge amount of storage space after decompression.<a href="#section-5.7.1.2.1-2" class="pilcrow">¶</a></p>
+<p id="section-5.7.1.2.1-3">
+                Implementors should therefore apply storage quotas to messages based on the size of the representation in which they will actually be stored. Implementors may also wish to consider rejecting messages whose compressed representation is significantly larger than the message represented.<a href="#section-5.7.1.2.1-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="issues-dos-resources-storage-duplication">
+<section id="section-5.7.1.2.2">
+              <h6 id="name-message-duplication">
+<a href="#section-5.7.1.2.2" class="section-number selfRef">5.7.1.2.2. </a><a href="#name-message-duplication" class="section-name selfRef">Message Duplication</a>
+              </h6>
+<p id="section-5.7.1.2.2-1">
+                Obviously, flooding a target with messages is an easy way exhaust that participant's resources. Using a dictionary does not natively affect that brute force strategy. However, simple mitigations to this sort of attack sometimes leave chinks in systems' armor, which dictionaries might play a role in exploiting.<a href="#section-5.7.1.2.2-1" class="pilcrow">¶</a></p>
+<p id="section-5.7.1.2.2-2">
+                For example, if an attacker can cause a participant to receive and store a single logical message more than once, with different metadata (such as the dictionary used) or with a different compressed representation (as a result of using a different dictionary), the participant may not be able or willing to deduplicate the message. For example, an HTTP Cache may be forced to store the same resource multiple times, compressed with different dictionaries, if the choice of dictionary is part of the cache's secondary key <span><a href="https://rfc-editor.org/rfc/rfc7234#section-4.1" class="relref">Section 4.1</a> of [<a href="#HTTP-CACHING" class="xref">HTTP-CACHING</a>]</span>.<a href="#section-5.7.1.2.2-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="issues-dos-resources-storage-dicts">
+<section id="section-5.7.1.2.3">
+              <h6 id="name-dictionaries-3">
+<a href="#section-5.7.1.2.3" class="section-number selfRef">5.7.1.2.3. </a><a href="#name-dictionaries-3" class="section-name selfRef">Dictionaries</a>
+              </h6>
+<p id="section-5.7.1.2.3-1">
+                Another possible avenue of attack would be to cause a participant to consume space by storing the dictionaries themselves. The effectiveness of attacks of this form are driven by the product of (1) the number of dictionaries stored, (2) their size, and (3) how long they are retained.<a href="#section-5.7.1.2.3-1" class="pilcrow">¶</a></p>
+<p id="section-5.7.1.2.3-2">
+                Dictionaries may themselves be fairly large. But one thing to note in particular is that, when in use, the space consumed by a dictionary may be significantly greater than its raw size. In order to be used in compression or decompression (but particularly in compression), the dictionary contents must be loaded into the compressor's internal datastructures. This can be done at compression-time, for every compression, using the datastructures already allocated for that compression.<a href="#section-5.7.1.2.3-2" class="pilcrow">¶</a></p>
+<p id="section-5.7.1.2.3-3">
+                Alternatively, some compression algorithms allow the user to do this preparation step separately, producing a materialized representation of the dictionary in memory that can be reused across a number of compression operations (e.g., a ZSTD_CDict). While this avoids duplicated work (processing the dictionary for each compression), applications which cache these materialized dictionaries can accidentally consume a lot of memory. In addition to the factors mentioned above that control the total size of stored dictionaries, the expansion factor as those dictionaries are materialized is controlled by the compression settings (and potentially instructions in the dictionary).<a href="#section-5.7.1.2.3-3" class="pilcrow">¶</a></p>
+<p id="section-5.7.1.2.3-4">
+                Applications that allow other participants to influence the contents, number, size, retention period, or compression settings of dictionaries should take care to constrain the total at rest and in-memory footprints of those dictionaries.<a href="#section-5.7.1.2.3-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="issues-dos-resources-compute">
+<section id="section-5.7.1.3">
+            <h5 id="name-computation">
+<a href="#section-5.7.1.3" class="section-number selfRef">5.7.1.3. </a><a href="#name-computation" class="section-name selfRef">Computation</a>
+            </h5>
+<p id="section-5.7.1.3-1">
+              Attacks of this form target the computational resources (and by extension, the time and energy) of a participant in the protocol.<a href="#section-5.7.1.3-1" class="pilcrow">¶</a></p>
+<div id="issues-dos-resources-compute-compression">
+<section id="section-5.7.1.3.1">
+              <h6 id="name-using-a-dictionary">
+<a href="#section-5.7.1.3.1" class="section-number selfRef">5.7.1.3.1. </a><a href="#name-using-a-dictionary" class="section-name selfRef">Using a Dictionary</a>
+              </h6>
+<p id="section-5.7.1.3.1-1">
+                For existing compressors that support dictionaries, compression and decompression with a dictionary is usually faster than without one.<a href="#section-5.7.1.3.1-1" class="pilcrow">¶</a></p>
+<p id="section-5.7.1.3.1-2">
+                However, as the kinds of information captured in dictionaries grows, as described in <a href="#dictionary-contents-structured" class="xref">Section 4.4.2</a>, dictionaries may come to include instructions that significantly influence the speed of the compressor. For example, dictionaries might specify a particularly laborious transformation to be performed on the input. Or they might specify internal compression parameters, which might instruct the compressor to do huge amounts of work during compression.<a href="#section-5.7.1.3.1-2" class="pilcrow">¶</a></p>
+<p id="section-5.7.1.3.1-3">
+                If dictionary-based compressions systems evolve to include these sorts of features, care should be taken to avoid allowing dictionaries from untrusted sources to influence compression behavior or parameters. Note: this is not a concern for existing dictionaries.<a href="#section-5.7.1.3.1-3" class="pilcrow">¶</a></p>
+<p id="section-5.7.1.3.1-4">
+                Analogously, care should be taken to avoid allowing dictionaries to influence decompression performance.<a href="#section-5.7.1.3.1-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="issues-dos-resources-compute-training">
+<section id="section-5.7.1.3.2">
+              <h6 id="name-generating-dictionaries-2">
+<a href="#section-5.7.1.3.2" class="section-number selfRef">5.7.1.3.2. </a><a href="#name-generating-dictionaries-2" class="section-name selfRef">Generating Dictionaries</a>
+              </h6>
+<p id="section-5.7.1.3.2-1">
+                Training a dictionary, depending on the methodology, can be a very expensive computation (building an optimal dictionary is NP-hard). Designers of protocols that involve creating new dictionaries on the fly should constrain either or both of (1) who can cause a participant to train a new dictionary and (2) the computational cost of training a new dictionary (by selecting a fast algorithm or by limiting the amount of data over which the algorithm is run).<a href="#section-5.7.1.3.2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="issues-dos-targets">
+<section id="section-5.7.2">
+          <h4 id="name-targets">
+<a href="#section-5.7.2" class="section-number selfRef">5.7.2. </a><a href="#name-targets" class="section-name selfRef">Targets</a>
+          </h4>
+<p id="section-5.7.2-1">
+            In addition to the immediate compressing and decompressing agents, the mechanisms surrounding dictionary-based compression may allow for the targeting of other agents.<a href="#section-5.7.2-1" class="pilcrow">¶</a></p>
+<div id="issues-dos-targets-intermediary">
+<section id="section-5.7.2.1">
+            <h5 id="name-an-intermediary">
+<a href="#section-5.7.2.1" class="section-number selfRef">5.7.2.1. </a><a href="#name-an-intermediary" class="section-name selfRef">An Intermediary</a>
+            </h5>
+<p id="section-5.7.2.1-1">
+              Insofar as intermediaries in internet protocols are often responsible for handling a much higher volume of traffic in a much lighter-weight way than protocol endpoints, any additional per-message or per-connection burden has the potential to significantly increase the workload of the intermediary. Retrieving, caching, and processing dictionaries, especially when the set of dictionaries is unbounded, is potentially untenable for intermediaries of that type.<a href="#section-5.7.2.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="issues-dos-targets-third-party">
+<section id="section-5.7.2.2">
+            <h5 id="name-a-third-party">
+<a href="#section-5.7.2.2" class="section-number selfRef">5.7.2.2. </a><a href="#name-a-third-party" class="section-name selfRef">A Third Party</a>
+            </h5>
+<p id="section-5.7.2.2-1">
+              The mechanisms surrounding dictionary-based compression potentially also enable attacks against third parties, including parties with whom the attacker cannot exchange messages directly.<a href="#section-5.7.2.2-1" class="pilcrow">¶</a></p>
+<p id="section-5.7.2.2-2">
+              If a recipient can be induced to relay messages to a third-party, or to generate new messages directed at a third-party, a third party can become the effective recipient of dictionary-compressed traffic. If the dictionaries used to compress these messages are hard or slow to load (or even non-existent), the work of handling these messages could be significant. This is especially a risk when decompression of the message is required before it can be evaluated against an access-control policy or otherwise distinguished from legitimate traffic.<a href="#section-5.7.2.2-2" class="pilcrow">¶</a></p>
+<p id="section-5.7.2.2-3">
+              Protocol designers should therefore consider carefully the risks of using dictionary-based compression on (the parts of) messages that are used for authentication.<a href="#section-5.7.2.2-3" class="pilcrow">¶</a></p>
+<p id="section-5.7.2.2-4">
+              Another possible attack, when dictionaries are distributed dynamically, arises from the ability for compressed messages to trigger the retrieval of a dictionary from a third party. This is especially a risk when the source for a dictionary can be arbitrarily specified (as, for example, a URL).<a href="#section-5.7.2.2-4" class="pilcrow">¶</a></p>
+<p id="section-5.7.2.2-5">
+              These approaches potentially allow an attacker to amplify their efforts and turn their attack into a distributed one.<a href="#section-5.7.2.2-5" class="pilcrow">¶</a></p>
+<p id="section-5.7.2.2-6">
+              Protocol designers should consider how the source for the retrieval of a dictionary is derived, who can influence that derivation, and whether it should be constrained to preclude nominating a third party.<a href="#section-5.7.2.2-6" class="pilcrow">¶</a></p>
+<p id="section-5.7.2.2-7">
+              Protocol designers and implementors who relay messages should also consider whether those messages should be relayed compressed with the same dictionary, or whether dictionary selection and negotiation should occur for each hop in the path of a message.<a href="#section-5.7.2.2-7" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="issues-training">
+<section id="section-5.8">
+        <h3 id="name-generating-dictionaries-3">
+<a href="#section-5.8" class="section-number selfRef">5.8. </a><a href="#name-generating-dictionaries-3" class="section-name selfRef">Generating Dictionaries</a>
+        </h3>
+<p id="section-5.8-1">
+          This section discusses the potential for inadvertent leakage of private information in the creation of dictionaries.<a href="#section-5.8-1" class="pilcrow">¶</a></p>
+<p id="section-5.8-2">
+          As described in <a href="#dictionaries-training" class="xref">Section 4.5.1</a>, dictionaries are commonly generated by an algorithm run over a corpus sampled from the application's traffic. For systems which wish to publish dictionaries publicly (or, at any rate, with less strict access controls than the traffic on which they are trained), it is important to prevent the leakage of private information in the creation of dictionaries.<a href="#section-5.8-2" class="pilcrow">¶</a></p>
+<p id="section-5.8-3">
+          The output of this training process, the dictionary, as described in <a href="#dictionary-contents" class="xref">Section 4.4</a>, may be composed of several different kinds of data. Some of these pieces, like statistical summaries around symbol frequencies, are unlikely to represent vectors for leaking useful information about the corpus they were trained on. Other components, however, directly represent substrings found in the input corpus.<a href="#section-5.8-3" class="pilcrow">¶</a></p>
+<p id="section-5.8-4">
+          Protocol designers, implementors, and participants that construct their own dictionaries should take care to do so in a way that does not reproduce private data in the produced dictionaries' contents.<a href="#section-5.8-4" class="pilcrow">¶</a></p>
+<div id="issues-training-samples">
+<section id="section-5.8.1">
+          <h4 id="name-handling-samples">
+<a href="#section-5.8.1" class="section-number selfRef">5.8.1. </a><a href="#name-handling-samples" class="section-name selfRef">Handling Samples</a>
+          </h4>
+<p id="section-5.8.1-1">
+            Since dictionaries are generally produced from a collection of sample data, implementing a dictionary training capability may require storing or otherwise handling message traffic in ways it would otherwise not. This in itself can create an attack surface, for example if secrets that would normally exist only in transit or in memory are persisted or passed to other systems.<a href="#section-5.8.1-1" class="pilcrow">¶</a></p>
+<p id="section-5.8.1-2">
+            Care should be taken by implementors to protect the security of messages that are selected as samples for future use in dictionary training. Protections should be implemented both at rest and in transit, including retention limits, so as to limit the window of compromise.<a href="#section-5.8.1-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="issues-training-tagging">
+<section id="section-5.8.2">
+          <h4 id="name-tagging-mitigations">
+<a href="#section-5.8.2" class="section-number selfRef">5.8.2. </a><a href="#name-tagging-mitigations" class="section-name selfRef">Tagging Mitigations</a>
+          </h4>
+<p id="section-5.8.2-1">
+            One strategy for ensuring that private data does not appear in dictionaries is to avoid presenting private data to the training algorithm at all. This sanitization of the training samples can be accomplished either by removing just the specific parts of samples that are private or by entirely removing samples that contain any private data in them.<a href="#section-5.8.2-1" class="pilcrow">¶</a></p>
+<p id="section-5.8.2-2">
+            This discrimination of private and public content can rely on being able to identify private information on sight (e.g., <span>[<a href="#CLOUDFLARE-NO-COMPRESS" class="xref">CLOUDFLARE-NO-COMPRESS</a>]</span>).<a href="#section-5.8.2-2" class="pilcrow">¶</a></p>
+<p id="section-5.8.2-3">
+            Alternatively, the trainer can rely on explicit signals, provided alongside the messages, to perform that discrimination.<a href="#section-5.8.2-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="issues-training-probabilistic">
+<section id="section-5.8.3">
+          <h4 id="name-probabilistic-mitigations">
+<a href="#section-5.8.3" class="section-number selfRef">5.8.3. </a><a href="#name-probabilistic-mitigations" class="section-name selfRef">Probabilistic Mitigations</a>
+          </h4>
+<p id="section-5.8.3-1">
+            Another strategy relies on a statistical approach for the identification and removal of private information.<a href="#section-5.8.3-1" class="pilcrow">¶</a></p>
+<p id="section-5.8.3-2">
+            In building the dictionary's contents, the goal of the dictionary training algorithm is to collect the set of strings that most effectively improve the compression ratio of messages in the corpus. This goal is best served by including strings that appear frequently in the sample corpus and rejecting strings that appear rarely.<a href="#section-5.8.3-2" class="pilcrow">¶</a></p>
+<p id="section-5.8.3-3">
+            In a loose way, it is reasonable to expect that commonly occurring substrings are less private, and rarely occurring substrings may be more private. So the dictionary trainer's interests are broadly aligned with this goal of not including private information in the dictionary.<a href="#section-5.8.3-3" class="pilcrow">¶</a></p>
+<p id="section-5.8.3-4">
+            While existing public dictionary training algorithms largely do not include specific protections or offer hard guarantees to prevent the inclusion of private data in their output, there is ongoing research in this area. Future algorithms may be able to provide confidence that private data (that is not somehow overrepresented in the training corpus) will be filtered out of the produced dictionary.<a href="#section-5.8.3-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="issues-complexity">
+<section id="section-5.9">
+        <h3 id="name-complexity">
+<a href="#section-5.9" class="section-number selfRef">5.9. </a><a href="#name-complexity" class="section-name selfRef">Complexity</a>
+        </h3>
+<p id="section-5.9-1">
+          Complexity is ever the enemy of security. It is unavoidably the case that dictionary-based compression is more complicated than stateless compression.<a href="#section-5.9-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="conclusions">
+<section id="section-6">
+      <h2 id="name-conclusions">
+<a href="#section-6" class="section-number selfRef">6. </a><a href="#name-conclusions" class="section-name selfRef">Conclusions</a>
+      </h2>
+<p id="section-6-1">
+        This document attempts to analyze risks and responses at the intersection of several widely varying factors--the protocol, the environment, the threat model--and its conclusions are necessarily situational.<a href="#section-6-1" class="pilcrow">¶</a></p>
+<p id="section-6-2">
+        From that space of configurations, some broad conclusions can nonetheless be drawn. Much of the complexity and risk in implementing dictionary-based compression comes from its surrounding apparatus: creating dictionaries, handling them, distributing them, storing them, identifying them, and so on. A significant distinction can therefore be drawn between systems that have to grapple with those challenges versus those that don't.<a href="#section-6-2" class="pilcrow">¶</a></p>
+<p id="section-6-3">
+        <span class="cref">[TODO]</span><a href="#section-6-3" class="pilcrow">¶</a></p>
+<ul>
+<li id="section-6-4.1">
+          It removes a whole class of concern if the dictionaries in a system can be treated as public data.<a href="#section-6-4.1" class="pilcrow">¶</a>
+</li>
+<li id="section-6-4.2">
+          Relatedly, a whole class of concerns are mitigated if it can be guaranteed that dictionaries do not contain any secret or private data.<a href="#section-6-4.2" class="pilcrow">¶</a>
+</li>
+<li id="section-6-4.3">
+          Dictionaries should only be used in the context of their source's trust domain <span class="cref">[TODO: reword]</span><a href="#section-6-4.3" class="pilcrow">¶</a>
+</li>
+<li id="section-6-4.4">
+          <span class="cref">[TODO]</span><a href="#section-6-4.4" class="pilcrow">¶</a>
+</li>
+</ul>
+</section>
+</div>
+<div id="iana">
+<section id="section-7">
+      <h2 id="name-iana-considerations">
+<a href="#section-7" class="section-number selfRef">7. </a><a href="#name-iana-considerations" class="section-name selfRef">IANA Considerations</a>
+      </h2>
+<p id="section-7-1">This document includes no actions for IANA.<a href="#section-7-1" class="pilcrow">¶</a></p>
+<p id="section-7-2">[RFC Editor: Please remove this section before publication.]<a href="#section-7-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="security">
+<section id="section-8">
+      <h2 id="name-security-considerations">
+<a href="#section-8" class="section-number selfRef">8. </a><a href="#name-security-considerations" class="section-name selfRef">Security Considerations</a>
+      </h2>
+<p id="section-8-1">
+        This document enumerates known security considerations about a space that is under development. The list of issues discussed above may not be exhaustive, but it is hopefully complete enough to aid in the design and implementation of future systems and protocols.<a href="#section-8-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<section id="section-9">
+      <h2 id="name-references">
+<a href="#section-9" class="section-number selfRef">9. </a><a href="#name-references" class="section-name selfRef">References</a>
+      </h2>
+<section id="section-9.1">
+        <h3 id="name-normative-references">
+<a href="#section-9.1" class="section-number selfRef">9.1. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
+        </h3>
+<dl class="references">
+<dt id="BROTLI">[BROTLI]</dt>
+<dd>
+<span class="refAuthor">Alakuijala, J.</span><span class="refAuthor"> and Z. Szabadka</span>, <span class="refTitle">"Brotli Compressed Data Format"</span>, <span class="seriesInfo">RFC 7932</span>, <span class="seriesInfo">DOI 10.17487/RFC7932</span>, <time datetime="2016-07">July 2016</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc7932">https://www.rfc-editor.org/info/rfc7932</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="DEFLATE">[DEFLATE]</dt>
+<dd>
+<span class="refAuthor">Deutsch, P.</span>, <span class="refTitle">"DEFLATE Compressed Data Format Specification version 1.3"</span>, <span class="seriesInfo">RFC 1951</span>, <span class="seriesInfo">DOI 10.17487/RFC1951</span>, <time datetime="1996-05">May 1996</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc1951">https://www.rfc-editor.org/info/rfc1951</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="ZSTD">[ZSTD]</dt>
+<dd>
+<span class="refAuthor">Collet, Y.</span><span class="refAuthor"> and M. Kucherawy, Ed.</span>, <span class="refTitle">"Zstandard Compression and the application/zstd Media Type"</span>, <span class="seriesInfo">RFC 8478</span>, <span class="seriesInfo">DOI 10.17487/RFC8478</span>, <time datetime="2018-10">October 2018</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc8478">https://www.rfc-editor.org/info/rfc8478</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+<section id="section-9.2">
+        <h3 id="name-other-examples-of-dictionar">
+<a href="#section-9.2" class="section-number selfRef">9.2. </a><a href="#name-other-examples-of-dictionar" class="section-name selfRef">Other Examples of Dictionary-Like Compression</a>
+        </h3>
+<dl class="references">
+<dt id="HPACK">[HPACK]</dt>
+<dd>
+<span class="refAuthor">Peon, R.</span><span class="refAuthor"> and H. Ruellan</span>, <span class="refTitle">"HPACK: Header Compression for HTTP/2"</span>, <span class="seriesInfo">RFC 7541</span>, <span class="seriesInfo">DOI 10.17487/RFC7541</span>, <time datetime="2015-05">May 2015</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc7541">https://www.rfc-editor.org/info/rfc7541</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="HTTP-DELTA-ENCODING">[HTTP-DELTA-ENCODING]</dt>
+<dd>
+<span class="refAuthor">Mogul, J.</span><span class="refAuthor">, Krishnamurthy, B.</span><span class="refAuthor">, Douglis, F.</span><span class="refAuthor">, Feldmann, A.</span><span class="refAuthor">, Goland, Y.</span><span class="refAuthor">, van Hoff, A.</span><span class="refAuthor">, and D. Hellerstein</span>, <span class="refTitle">"Delta encoding in HTTP"</span>, <span class="seriesInfo">RFC 3229</span>, <span class="seriesInfo">DOI 10.17487/RFC3229</span>, <time datetime="2002-01">January 2002</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc3229">https://www.rfc-editor.org/info/rfc3229</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="I-D.ietf-quic-qpack">[I-D.ietf-quic-qpack]</dt>
+<dd>
+<span class="refAuthor">Krasic, C.</span><span class="refAuthor">, Bishop, M.</span><span class="refAuthor">, and A. Frindell, Ed.</span>, <span class="refTitle">"QPACK: Header Compression for HTTP/3"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-ietf-quic-qpack-10</span>, <time datetime="2019">2019</time>, <span>&lt;<a href="https://tools.ietf.org/html/draft-ietf-quic-qpack-10">https://tools.ietf.org/html/draft-ietf-quic-qpack-10</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="I-D.lee-sdch-spec">[I-D.lee-sdch-spec]</dt>
+<dd>
+<span class="refAuthor">Butler, J.</span><span class="refAuthor">, Lee, W.</span><span class="refAuthor">, McQuade, B.</span><span class="refAuthor">, and K. Mixter</span>, <span class="refTitle">"A Proposal for Shared Dictionary Compression over HTTP"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-lee-sdch-spec-00</span>, <time datetime="2016-10">October 2016</time>, <span>&lt;<a href="https://tools.ietf.org/html/draft-lee-sdch-spec-00">https://tools.ietf.org/html/draft-lee-sdch-spec-00</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="I-D.reschke-http-oob-encoding">[I-D.reschke-http-oob-encoding]</dt>
+<dd>
+<span class="refAuthor">Reschke, J.</span><span class="refAuthor"> and S. Loreto</span>, <span class="refTitle">"'Out-Of-Band' Content Coding for HTTP"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-reschke-http-oob-encoding-12</span>, <time datetime="2017">2017</time>, <span>&lt;<a href="https://tools.ietf.org/html/draft-reschke-http-oob-encoding-12">https://tools.ietf.org/html/draft-reschke-http-oob-encoding-12</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="I-D.vandevenne-shared-brotli-format">[I-D.vandevenne-shared-brotli-format]</dt>
+<dd>
+<span class="refAuthor">Alakuijala, J.</span><span class="refAuthor">, Duong, T.</span><span class="refAuthor">, Kliuchnikov, E.</span><span class="refAuthor">, Obryk, R.</span><span class="refAuthor">, Szabadka, Z.</span><span class="refAuthor">, and L. Vandevenne, Ed.</span>, <span class="refTitle">"Shared Brotli Compressed Data Format"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-vandevenne-shared-brotli-format-04</span>, <time datetime="2019-08-21">21 August 2019</time>, <span>&lt;<a href="https://tools.ietf.org/html/draft-vandevenne-shared-brotli-format-04">https://tools.ietf.org/html/draft-vandevenne-shared-brotli-format-04</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="I-D.vkrasnov-h2-compression-dictionaries">[I-D.vkrasnov-h2-compression-dictionaries]</dt>
+<dd>
+<span class="refAuthor">Krasnov, V.</span><span class="refAuthor"> and Y. Weiss</span>, <span class="refTitle">"Compression Dictionaries for HTTP/2"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-vkrasnov-h2-compression-dictionaries-03</span>, <time datetime="2018">2018</time>, <span>&lt;<a href="https://tools.ietf.org/html/draft-vkrasnov-h2-compression-dictionaries-03">https://tools.ietf.org/html/draft-vkrasnov-h2-compression-dictionaries-03</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+<section id="section-9.3">
+        <h3 id="name-informative-references">
+<a href="#section-9.3" class="section-number selfRef">9.3. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
+        </h3>
+<dl class="references">
+<dt id="BREACH">[BREACH]</dt>
+<dd>
+<span class="refAuthor">Prado, A.</span><span class="refAuthor">, Harris, N.</span><span class="refAuthor">, and Y. Gluck</span>, <span class="refTitle">"BREACH: SSL, Gone in 30 Seconds"</span>, <time datetime="2013">2013</time>, <span>&lt;<a href="https://breachattack.com/">https://breachattack.com/</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="CLOUDFLARE-NO-COMPRESS">[CLOUDFLARE-NO-COMPRESS]</dt>
+<dd>
+<span class="refAuthor">Loring, B.</span>, <span class="refTitle">"A Solution to Compression Oracles on the Web"</span>, <time datetime="2018-03-27">27 March 2018</time>, <span>&lt;<a href="https://blog.cloudflare.com/a-solution-to-compression-oracles-on-the-web/">https://blog.cloudflare.com/a-solution-to-compression-oracles-on-the-web/</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="COOKIES">[COOKIES]</dt>
+<dd>
+<span class="refAuthor">Barth, A.</span>, <span class="refTitle">"HTTP State Management Mechanism"</span>, <span class="seriesInfo">RFC 6265</span>, <span class="seriesInfo">DOI 10.17487/RFC6265</span>, <time datetime="2011-04">April 2011</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6265">https://www.rfc-editor.org/info/rfc6265</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="COVER">[COVER]</dt>
+<dd>
+<span class="refAuthor">Liao, K.</span><span class="refAuthor">, Petri, M.</span><span class="refAuthor">, Moffat, A.</span><span class="refAuthor">, and A. Wirth</span>, <span class="refTitle">"Effective Construction of Relative Lempel-Ziv Dictionaries"</span>, <span class="seriesInfo">DOI 10.1145/2872427.2883042</span>, <time datetime="2016">2016</time>, <span>&lt;<a href="https://doi.org/10.1145/2872427.2883042">https://doi.org/10.1145/2872427.2883042</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="CRIME">[CRIME]</dt>
+<dd>
+<span class="refAuthor">Rizzo, J.</span><span class="refAuthor"> and T. Duong</span>, <span class="refTitle">"Compression Ratio Info-leak Made Easy"</span>, <time datetime="2012">2012</time>, <span>&lt;<a href="https://www.ekoparty.org/archive/2012/CRIME_ekoparty2012.pdf">https://www.ekoparty.org/archive/2012/CRIME_ekoparty2012.pdf</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="ENCRYPT-THEN-AUTHENTICATE">[ENCRYPT-THEN-AUTHENTICATE]</dt>
+<dd>
+<span class="refAuthor">Krawczyk, H.</span>, <span class="refTitle">"The Order of Encryption and Authentication for Protecting Communications (Or: How Secure is SSL?)"</span>, <time datetime="2001">2001</time>, <span>&lt;<a href="https://iacr.org/archive/crypto2001/21390309.pdf">https://iacr.org/archive/crypto2001/21390309.pdf</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="HEIST">[HEIST]</dt>
+<dd>
+<span class="refAuthor">Vanhoef, M.</span><span class="refAuthor"> and T. Van Goethem</span>, <span class="refTitle">"HEIST: HTTP Encrypted Information can be Stolen through TCP-windows"</span>, <time datetime="2016">2016</time>, <span>&lt;<a href="https://tom.vg/papers/heist_blackhat2016.pdf">https://tom.vg/papers/heist_blackhat2016.pdf</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="HTTP-CACHING">[HTTP-CACHING]</dt>
+<dd>
+<span class="refAuthor">Fielding, R., Ed.</span><span class="refAuthor">, Nottingham, M., Ed.</span><span class="refAuthor">, and J. Reschke, Ed.</span>, <span class="refTitle">"Hypertext Transfer Protocol (HTTP/1.1): Caching"</span>, <span class="seriesInfo">RFC 7234</span>, <span class="seriesInfo">DOI 10.17487/RFC7234</span>, <time datetime="2014-06">June 2014</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc7234">https://www.rfc-editor.org/info/rfc7234</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="I-D.arkko-arch-internet-threat-model">[I-D.arkko-arch-internet-threat-model]</dt>
+<dd>
+<span class="refAuthor">Arkko, J.</span>, <span class="refTitle">"Changes in the Internet Threat Model"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-arkko-arch-internet-threat-model-01</span>, <time datetime="2019-07">July 2019</time>, <span>&lt;<a href="https://tools.ietf.org/html/draft-arkko-arch-internet-threat-model-01">https://tools.ietf.org/html/draft-arkko-arch-internet-threat-model-01</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="I-D.draft-farrell-etm">[I-D.draft-farrell-etm]</dt>
+<dd>
+<span class="refAuthor">Farrell, S.</span>, <span class="refTitle">"We're gonna need a bigger threat model"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-farrell-etm-03</span>, <time datetime="2019-07">July 2019</time>, <span>&lt;<a href="https://tools.ietf.org/html/draft-farrell-etm-03">https://tools.ietf.org/html/draft-farrell-etm-03</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="I-D.draft-kucherawy-httpbis-dict-sec">[I-D.draft-kucherawy-httpbis-dict-sec]</dt>
+<dd>
+<span class="refAuthor">Kucherawy, M.</span>, <span class="refTitle">"Security Considerations Regarding Compression Dictionaries"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-kucherawy-httpbis-dict-sec-00</span>, <time datetime="2018-11">November 2018</time>, <span>&lt;<a href="https://tools.ietf.org/html/draft-kucherawy-httpbis-dict-sec-00">https://tools.ietf.org/html/draft-kucherawy-httpbis-dict-sec-00</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="I-D.pironti-tls-length-hiding">[I-D.pironti-tls-length-hiding]</dt>
+<dd>
+<span class="refAuthor">Pironti, A.</span><span class="refAuthor"> and N. Mavrogiannopoulos</span>, <span class="refTitle">"Length Hiding Padding for the Transport Layer Security Protocol"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-pironti-tls-length-hiding-02</span>, <time datetime="2013-09">September 2013</time>, <span>&lt;<a href="https://tools.ietf.org/html/draft-pironti-tls-length-hiding-02">https://tools.ietf.org/html/draft-pironti-tls-length-hiding-02</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="LZ77">[LZ77]</dt>
+<dd>
+<span class="refAuthor">Ziv, J.</span><span class="refAuthor"> and A. Lempel</span>, <span class="refTitle">"A Universal Algorithm for Sequential Data Compression"</span>, <span class="seriesInfo">DOI 10.1109/TIT.1977.1055714</span>, <time datetime="1977-05">May 1977</time>, <span>&lt;<a href="https://ieeexplore.ieee.org/document/1055714">https://ieeexplore.ieee.org/document/1055714</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="LZ78">[LZ78]</dt>
+<dd>
+<span class="refAuthor">Ziv, J.</span><span class="refAuthor"> and A. Lempel</span>, <span class="refTitle">"Compression of individual sequences via variable-rate coding"</span>, <span class="seriesInfo">DOI 10.1109/TIT.1978.1055934</span>, <time datetime="1978-09">September 1978</time>, <span>&lt;<a href="https://ieeexplore.ieee.org/document/1055934">https://ieeexplore.ieee.org/document/1055934</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="PERVASIVE-MONITORING">[PERVASIVE-MONITORING]</dt>
+<dd>
+<span class="refAuthor">Farrell, S.</span><span class="refAuthor"> and H. Tschofenig</span>, <span class="refTitle">"Pervasive Monitoring Is an Attack"</span>, <span class="seriesInfo">BCP 188</span>, <span class="seriesInfo">RFC 7258</span>, <span class="seriesInfo">DOI 10.17487/RFC7258</span>, <time datetime="2014-05">May 2014</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc7258">https://www.rfc-editor.org/info/rfc7258</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="PRIVACY">[PRIVACY]</dt>
+<dd>
+<span class="refAuthor">Cooper, A.</span><span class="refAuthor">, Tschofenig, H.</span><span class="refAuthor">, Aboba, B.</span><span class="refAuthor">, Peterson, J.</span><span class="refAuthor">, Morris, J.</span><span class="refAuthor">, Hansen, M.</span><span class="refAuthor">, and R. Smith</span>, <span class="refTitle">"Privacy Considerations for Internet Protocols"</span>, <span class="seriesInfo">RFC 6973</span>, <span class="seriesInfo">DOI 10.17487/RFC6973</span>, <time datetime="2013-07">July 2013</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6973">https://www.rfc-editor.org/info/rfc6973</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC2360">[RFC2360]</dt>
+<dd>
+<span class="refAuthor">Scott, G.</span>, <span class="refTitle">"Guide for Internet Standards Writers"</span>, <span class="seriesInfo">BCP 22</span>, <span class="seriesInfo">RFC 2360</span>, <span class="seriesInfo">DOI 10.17487/RFC2360</span>, <time datetime="1998-06">June 1998</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc2360">https://www.rfc-editor.org/info/rfc2360</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="SECURITY-GUIDELINES">[SECURITY-GUIDELINES]</dt>
+<dd>
+<span class="refAuthor">Rescorla, E.</span><span class="refAuthor"> and B. Korver</span>, <span class="refTitle">"Guidelines for Writing RFC Text on Security Considerations"</span>, <span class="seriesInfo">BCP 72</span>, <span class="seriesInfo">RFC 3552</span>, <span class="seriesInfo">DOI 10.17487/RFC3552</span>, <time datetime="2003-07">July 2003</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc3552">https://www.rfc-editor.org/info/rfc3552</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="SRI">[SRI]</dt>
+<dd>
+<span class="refAuthor">Akhawe, D.</span><span class="refAuthor">, Braun, F.</span><span class="refAuthor">, Marier, F.</span><span class="refAuthor">, and J. Weinberger</span>, <span class="refTitle">"Subresource Integrity"</span>, <time datetime="2014-03">March 2014</time>, <span>&lt;<a href="https://www.w3.org/TR/SRI/">https://www.w3.org/TR/SRI/</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="ZIP">[ZIP]</dt>
+<dd>
+<span class="refAuthor">[TODO], [TODO].</span>, <span class="refTitle">"APPNOTE.TXT - .ZIP File Format Specification"</span>, <time datetime="2019-04">April 2019</time>, <span>&lt;<a href="https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT">https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="ZSTD-DICTS">[ZSTD-DICTS]</dt>
+<dd>
+<span class="refAuthor">Collet, Y.</span><span class="refAuthor">, Handte, W. F. P.</span><span class="refAuthor">, and N. Terrell</span>, <span class="refTitle">"5 ways Facebook improved compression at scale with Zstandard"</span>, <time datetime="2018-12-19">19 December 2018</time>, <span>&lt;<a href="https://code.fb.com/core-data/zstandard/">https://code.fb.com/core-data/zstandard/</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</section>
+<div id="thanks">
+<section id="section-appendix.a">
+      <h2 id="name-acknowledgements">
+<a href="#section-appendix.a" class="section-number selfRef">Appendix A. </a><a href="#name-acknowledgements" class="section-name selfRef">Acknowledgements</a>
+      </h2>
+<p id="section-appendix.a-1">
+        The author wishes to acknowledge the following for their help in writing and improving this document: Yann Collet, Murray Kucherawy, Nick Terrell, Martin Thomson... <span class="cref">[TODO]</span><a href="#section-appendix.a-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="authors-addresses">
+<section id="section-appendix.b">
+      <h2 id="name-authors-address">
+<a href="#name-authors-address" class="section-name selfRef">Author's Address</a>
+      </h2>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">W. Felix P. Handte</span></div>
+<div dir="auto" class="left"><span class="org">Facebook, Inc.</span></div>
+<div dir="auto" class="left"><span class="street-address">770 Broadway</span></div>
+<div dir="auto" class="left">
+<span class="locality">New York</span>, <span class="region">NY</span> <span class="postal-code">10003</span>
+</div>
+<div dir="auto" class="left"><span class="country-name">United States of America</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:w@felixhandte.com" class="email">w@felixhandte.com</a>
+</div>
+</address>
+</section>
+</div>
+<script>const toc = document.getElementById("toc");
+toc.querySelector("h2").addEventListener("click", e => {
+  toc.classList.toggle("active");
+});
+toc.querySelector("nav").addEventListener("click", e => {
+  toc.classList.remove("active");
+});
+</script>
+</body>
+</html>

@@ -2,22 +2,29 @@
 
 
 
-Individual submission                                          W. Handte
+Individual submission                                    W. F. P. Handte
 Internet-Draft                                            Facebook, Inc.
-Intended status: Informational                          October 30, 2019
-Expires: May 2, 2020
+Intended status: Informational                               20 May 2020
+Expires: 21 November 2020
 
 
-       Security Considerations Regarding Compression Dictionaries
-                  draft-handte-httpbis-dict-sec-latest
+             Security Considerations Regarding Compression
+              draft-handte-httpbis-compression-sec-latest
 
 Abstract
 
-   Dictionary-based compression enables better performance, but brings
-   state into the process of compression, with all the complexities that
-   follow.  This document explores the security implications of this
-   technique in the context of internet protocols and enumerates known
-   risks and mitigations.
+   // [TODO]
+
+Draft Development
+
+   This note is to be removed before publishing as an RFC.
+
+   The source code and issues list for this draft can be found at
+   https://github.com/felixhandte/draft-handte-httpbis-dict-sec.
+
+   Discussion of this draft takes place on the HTTP working group
+   mailing list (ietf-http-wg@w3.org), which is archived at
+   https://lists.w3.org/Archives/Public/ietf-http-wg/.
 
 Status of This Memo
 
@@ -34,97 +41,306 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on May 2, 2020.
+   This Internet-Draft will expire on 21 November 2020.
 
 Copyright Notice
 
-   Copyright (c) 2019 IETF Trust and the persons identified as the
+   Copyright (c) 2020 IETF Trust and the persons identified as the
    document authors.  All rights reserved.
 
-   This document is subject to BCP 78 and the IETF Trust's Legal
-   Provisions Relating to IETF Documents
-   (https://trustee.ietf.org/license-info) in effect on the date of
-   publication of this document.  Please review these documents
-   carefully, as they describe your rights and restrictions with respect
-   to this document.  Code Components extracted from this document must
-   include Simplified BSD License text as described in Section 4.e of
-   the Trust Legal Provisions and are provided without warranty as
-   described in the Simplified BSD License.
 
 
 
-Handte                     Expires May 2, 2020                  [Page 1]
+
+
+Handte                  Expires 21 November 2020                [Page 1]
 
-Internet-Draft       Compression Dictionary Security        October 2019
+Internet-Draft            Compression Security                  May 2020
 
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Simplified BSD License text
+   as described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Simplified BSD License.
 
 Table of Contents
 
    1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
    2.  Basis . . . . . . . . . . . . . . . . . . . . . . . . . . . .   3
-     2.1.  Compression Environments  . . . . . . . . . . . . . . . .   3
-     2.2.  Security Properties . . . . . . . . . . . . . . . . . . .   4
-     2.3.  Threat Model  . . . . . . . . . . . . . . . . . . . . . .   4
-     2.4.  Existing Attacks  . . . . . . . . . . . . . . . . . . . .   4
-   3.  Dictionaries  . . . . . . . . . . . . . . . . . . . . . . . .   5
-     3.1.  Dictionary Compression  . . . . . . . . . . . . . . . . .   5
-     3.2.  Dictionary Contents . . . . . . . . . . . . . . . . . . .   5
-       3.2.1.  Unstructured Dictionaries . . . . . . . . . . . . . .   5
-       3.2.2.  Structured Dictionaries . . . . . . . . . . . . . . .   6
-     3.3.  Using Dictionaries  . . . . . . . . . . . . . . . . . . .   6
-       3.3.1.  Generating Dictionaries . . . . . . . . . . . . . . .   6
-       3.3.2.  Identifying Dictionaries  . . . . . . . . . . . . . .   7
-       3.3.3.  Distributing Dictionaries . . . . . . . . . . . . . .   9
-       3.3.4.  Selecting Dictionaries  . . . . . . . . . . . . . . .   9
-       3.3.5.  Using Dictionaries  . . . . . . . . . . . . . . . . .  10
-       3.3.6.  Deleting Dictionaries . . . . . . . . . . . . . . . .  10
-   4.  Risks . . . . . . . . . . . . . . . . . . . . . . . . . . . .  11
-     4.1.  Revealing Message Content . . . . . . . . . . . . . . . .  11
-       4.1.1.  By Observing Which Dictionary is Used . . . . . . . .  11
-       4.1.2.  By Observing Message Size . . . . . . . . . . . . . .  12
-       4.1.3.  By Observing Timing . . . . . . . . . . . . . . . . .  13
-     4.2.  Revealing Dictionary Content  . . . . . . . . . . . . . .  14
-       4.2.1.  By Observing Message Size . . . . . . . . . . . . . .  14
-       4.2.2.  In Compression  . . . . . . . . . . . . . . . . . . .  14
-       4.2.3.  In Decompression  . . . . . . . . . . . . . . . . . .  14
-     4.3.  Manipulating Message Content  . . . . . . . . . . . . . .  15
-       4.3.1.  By Manipulating Message Content . . . . . . . . . . .  16
-       4.3.2.  By Manipulating Dictionary Content  . . . . . . . . .  16
-       4.3.3.  By Manipulating Dictionary Identifiers  . . . . . . .  17
-     4.4.  Obfuscating Message Content . . . . . . . . . . . . . . .  17
-       4.4.1.  From Intermediaries . . . . . . . . . . . . . . . . .  17
-       4.4.2.  Multiple Representations  . . . . . . . . . . . . . .  18
-     4.5.  Tracking Users  . . . . . . . . . . . . . . . . . . . . .  18
-       4.5.1.  Through Dictionary Negotiation  . . . . . . . . . . .  18
-       4.5.2.  Through Dictionary Retrieval  . . . . . . . . . . . .  19
-     4.6.  Denial of Service . . . . . . . . . . . . . . . . . . . .  19
-     4.7.  Resource Exhaustion . . . . . . . . . . . . . . . . . . .  19
-       4.7.1.  Resources . . . . . . . . . . . . . . . . . . . . . .  19
-       4.7.2.  Targets . . . . . . . . . . . . . . . . . . . . . . .  22
-     4.8.  Generating Dictionaries . . . . . . . . . . . . . . . . .  24
-       4.8.1.  Handling Samples  . . . . . . . . . . . . . . . . . .  24
-       4.8.2.  Tagging Mitigations . . . . . . . . . . . . . . . . .  24
-       4.8.3.  Probabilistic Mitigations . . . . . . . . . . . . . .  25
-     4.9.  Complexity  . . . . . . . . . . . . . . . . . . . . . . .  25
+     2.1.  Environments  . . . . . . . . . . . . . . . . . . . . . .   3
+     2.2.  Goals . . . . . . . . . . . . . . . . . . . . . . . . . .   4
+       2.2.1.  Communications Security . . . . . . . . . . . . . . .   4
+       2.2.2.  Systems Security  . . . . . . . . . . . . . . . . . .   5
+       2.2.3.  Privacy . . . . . . . . . . . . . . . . . . . . . . .   5
+     2.3.  Threat Model  . . . . . . . . . . . . . . . . . . . . . .   5
+       2.3.1.  Passive Attacks . . . . . . . . . . . . . . . . . . .   6
+       2.3.2.  Active Attacks  . . . . . . . . . . . . . . . . . . .   6
+   3.  Compression . . . . . . . . . . . . . . . . . . . . . . . . .   6
+     3.1.  Components  . . . . . . . . . . . . . . . . . . . . . . .   6
+       3.1.1.  Compressor  . . . . . . . . . . . . . . . . . . . . .   6
+       3.1.2.  Decompressor  . . . . . . . . . . . . . . . . . . . .   6
+       3.1.3.  Message Representation  . . . . . . . . . . . . . . .   6
+       3.1.4.  Management  . . . . . . . . . . . . . . . . . . . . .   6
+   4.  Dictionaries  . . . . . . . . . . . . . . . . . . . . . . . .   7
+     4.1.  Introduction  . . . . . . . . . . . . . . . . . . . . . .   7
+     4.2.  Integration . . . . . . . . . . . . . . . . . . . . . . .   7
+     4.3.  Dictionary Compression  . . . . . . . . . . . . . . . . .   8
+     4.4.  Dictionary Contents . . . . . . . . . . . . . . . . . . .   8
+       4.4.1.  Unstructured Dictionaries . . . . . . . . . . . . . .   8
+       4.4.2.  Structured Dictionaries . . . . . . . . . . . . . . .   9
+     4.5.  Using Dictionaries  . . . . . . . . . . . . . . . . . . .   9
+       4.5.1.  Generating Dictionaries . . . . . . . . . . . . . . .   9
+       4.5.2.  Identifying Dictionaries  . . . . . . . . . . . . . .  10
+       4.5.3.  Distributing Dictionaries . . . . . . . . . . . . . .  11
+       4.5.4.  Selecting Dictionaries  . . . . . . . . . . . . . . .  12
+       4.5.5.  Using Dictionaries  . . . . . . . . . . . . . . . . .  13
+       4.5.6.  Deleting Dictionaries . . . . . . . . . . . . . . . .  13
+   5.  Risks . . . . . . . . . . . . . . . . . . . . . . . . . . . .  14
+     5.1.  Revealing Message Content . . . . . . . . . . . . . . . .  14
+       5.1.1.  By Observing Which Dictionary is Used . . . . . . . .  14
+       5.1.2.  By Observing Message Size . . . . . . . . . . . . . .  15
+       5.1.3.  By Observing Timing . . . . . . . . . . . . . . . . .  16
+     5.2.  Revealing Dictionary Content  . . . . . . . . . . . . . .  17
+       5.2.1.  By Observing Message Size . . . . . . . . . . . . . .  17
 
 
 
-Handte                     Expires May 2, 2020                  [Page 2]
+Handte                  Expires 21 November 2020                [Page 2]
 
-Internet-Draft       Compression Dictionary Security        October 2019
+Internet-Draft            Compression Security                  May 2020
 
 
-   5.  Conclusions . . . . . . . . . . . . . . . . . . . . . . . . .  25
-   6.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  26
-   7.  Security Considerations . . . . . . . . . . . . . . . . . . .  26
-   8.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  26
-     8.1.  Normative References  . . . . . . . . . . . . . . . . . .  26
-     8.2.  Other Examples of Dictionary-Like Compression . . . . . .  26
-     8.3.  Informative References  . . . . . . . . . . . . . . . . .  27
-   Appendix A.  Acknowledgements . . . . . . . . . . . . . . . . . .  30
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  30
+       5.2.2.  In Compression  . . . . . . . . . . . . . . . . . . .  17
+       5.2.3.  In Decompression  . . . . . . . . . . . . . . . . . .  18
+     5.3.  Manipulating Message Content  . . . . . . . . . . . . . .  18
+       5.3.1.  By Manipulating Message Content . . . . . . . . . . .  19
+       5.3.2.  By Manipulating Dictionary Content  . . . . . . . . .  19
+       5.3.3.  By Manipulating Dictionary Identifiers  . . . . . . .  20
+     5.4.  Obfuscating Message Content . . . . . . . . . . . . . . .  20
+       5.4.1.  From Intermediaries . . . . . . . . . . . . . . . . .  20
+       5.4.2.  Multiple Representations  . . . . . . . . . . . . . .  21
+       5.4.3.  Additional Data . . . . . . . . . . . . . . . . . . .  21
+       5.4.4.  Multiple Interpretations  . . . . . . . . . . . . . .  22
+     5.5.  Tracking Users  . . . . . . . . . . . . . . . . . . . . .  23
+       5.5.1.  Through Dictionary Negotiation  . . . . . . . . . . .  23
+       5.5.2.  Through Dictionary Retrieval  . . . . . . . . . . . .  23
+     5.6.  Denial of Service . . . . . . . . . . . . . . . . . . . .  24
+     5.7.  Resource Exhaustion . . . . . . . . . . . . . . . . . . .  24
+       5.7.1.  Resources . . . . . . . . . . . . . . . . . . . . . .  24
+       5.7.2.  Targets . . . . . . . . . . . . . . . . . . . . . . .  27
+     5.8.  Generating Dictionaries . . . . . . . . . . . . . . . . .  28
+       5.8.1.  Handling Samples  . . . . . . . . . . . . . . . . . .  29
+       5.8.2.  Tagging Mitigations . . . . . . . . . . . . . . . . .  29
+       5.8.3.  Probabilistic Mitigations . . . . . . . . . . . . . .  29
+     5.9.  Complexity  . . . . . . . . . . . . . . . . . . . . . . .  30
+   6.  Conclusions . . . . . . . . . . . . . . . . . . . . . . . . .  30
+   7.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  31
+   8.  Security Considerations . . . . . . . . . . . . . . . . . . .  31
+   9.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  31
+     9.1.  Normative References  . . . . . . . . . . . . . . . . . .  31
+     9.2.  Other Examples of Dictionary-Like Compression . . . . . .  31
+     9.3.  Informative References  . . . . . . . . . . . . . . . . .  32
+   Appendix A.  Acknowledgements . . . . . . . . . . . . . . . . . .  35
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  35
 
 1.  Introduction
+
+   // [TODO]
+
+2.  Basis
+
+2.1.  Environments
+
+   The security of any use of compression depends greatly on the
+   environment in which it is deployed, and the threats it is subjected
+   to.  This document analyzes compression as it might be used by a
+   generic internet protocol, in which:
+
+
+
+
+
+
+Handte                  Expires 21 November 2020                [Page 3]
+
+Internet-Draft            Compression Security                  May 2020
+
+
+   *  Agents exchange messages over possibly-trusted, possibly-
+      authenticated, possibly-encrypted channels, which are vulnerable
+      to some combination of traffic analysis, eavesdropping, and
+      manipulation.
+
+   *  Agents exchange messages with parties they may not trust.
+
+   *  Agents may take protocol actions (generating, sending, receiving,
+      and interpreting messages) in response to triggers beyond just
+      user action.  Some examples include:
+
+      -  Replying automatically to received messages.
+
+      -  Relaying or forwarding received messages to other agents (e.g.,
+         an SMTP relay).
+
+      -  Exchanging messages at the behest of trusted or untrusted code
+         (e.g., trusted: a website codebase generating responses to HTTP
+         requests, untrusted: a website's JavaScript code running in a
+         browser.
+
+   This document aims to enumerate all security risks raised when using
+   compression in this baseline environment.  In addition to attempting
+   an exhaustive list of possible security risks, this document will
+   identify desirable properties of the protocol stack and environment
+   in which the compression is used and other methods with which
+   individual concerns can be obviated or mitigated.
+
+2.2.  Goals
+
+   Security is an abstract goal.  It can be decomposed into a number of
+   sub-properties.  There are a number of different properties of a
+   protocol which contribute to its overall security. may be desirable
+   to preserve. ...
+   // [TODO][SECURITY-GUIDELINES] and [PRIVACY]
+
+2.2.1.  Communications Security
+
+2.2.1.1.  Confidentiality
+
+   // [TODO]
+
+2.2.1.2.  Integrity
+
+   // [TODO]
+
+
+
+
+
+
+Handte                  Expires 21 November 2020                [Page 4]
+
+Internet-Draft            Compression Security                  May 2020
+
+
+2.2.1.3.  Authenticity
+
+   // [TODO]
+
+2.2.2.  Systems Security
+
+2.2.2.1.  Unauthorized Use
+
+   // [TODO]
+
+2.2.2.2.  Inappropriate Use
+
+   // [TODO]
+
+2.2.2.3.  Denial of Service
+
+   // [TODO]
+
+   These risks are discussed in Section 5.6.
+
+2.2.3.  Privacy
+
+   [PRIVACY]
+
+2.2.3.1.  Correlation
+
+   // [TODO]
+
+2.2.3.2.  Identification
+
+   // [TODO]
+
+2.3.  Threat Model
+
+   Attackers vary in goals and capabilities along several axes,
+   including the following.
+
+   *  Their goals.
+
+   *  Their relationship to the target (whether they are trusted, etc.).
+
+   *  Their existing knowledge of the target.
+
+   *  How they can influence the target's behavior.
+
+   *  How they can observe the target's behavior.
+
+
+
+
+
+Handte                  Expires 21 November 2020                [Page 5]
+
+Internet-Draft            Compression Security                  May 2020
+
+
+   This document draws on the threat model described in Section 3.3 of
+   [SECURITY-GUIDELINES] and expanded on in
+   [I-D.arkko-arch-internet-threat-model].
+
+2.3.1.  Passive Attacks
+
+2.3.2.  Active Attacks
+
+3.  Compression
+
+
+              +------------+   compressed    +--------------+
+   message -> | compressor | --> message --> | decompressor | -> message
+              +------------+ representation  +--------------+
+
+3.1.  Components
+
+   Compression, as used in an application, consists of four noteworthy
+   components.
+
+3.1.1.  Compressor
+
+   This component is responsible for transforming
+   // [TODO]
+
+3.1.2.  Decompressor
+
+   // [TODO]
+
+3.1.3.  Message Representation
+
+   The compressor produces a representation of the message, which is
+   conveyed to the decompressor.  While in transport, it is subject to
+   inspection or modification.
+
+   // [TODO]
+
+3.1.4.  Management
+
+   The host system may take additional actions and/or exchange other
+   data to coordinate the use of this compression scheme.  These
+   activities are also subject to observation and interference.
+
+   // [TODO]
+
+
+
+
+
+
+
+Handte                  Expires 21 November 2020                [Page 6]
+
+Internet-Draft            Compression Security                  May 2020
+
+
+4.  Dictionaries
+
+4.1.  Introduction
 
    General-purpose data compression algorithms are designed to achieve
    good performance on many different kinds of data.  However, that
@@ -152,87 +368,37 @@ Internet-Draft       Compression Dictionary Security        October 2019
    that the protocols, their specifications, and their implementations
    have been appropriately evaluated against these concerns.
 
-2.  Basis
+4.2.  Integration
 
-2.1.  Compression Environments
+   In order to use dictionaries, it is not only the narrow compressor
+   and decompressor components of the application which must change.
+   Dictionaries make compression a stateful operation: systems that use
+   dictionaries must therefore participate in the whole lifecycle of
+   state management.
 
-   The security of any use of compression depends greatly on the
-   environment in which it is deployed, and the threats it is subjected
-   to.  This document analyzes dictionary-based compression as it might
-   be used by a generic internet protocol, in which:
+   In doing this, systems have a number of degrees of freedom in
+   integration, and the choices they make along those axes are relevant
+   to the security properties of the system.  In order to facilitate the
+   discussion of the resulting security properties, this section
+   introduces the mechanisms of dictionary compression, the choices
+   available to users, and surveys notable possible choices for those
+   questions.
 
 
 
 
 
-Handte                     Expires May 2, 2020                  [Page 3]
+
+Handte                  Expires 21 November 2020                [Page 7]
 
-Internet-Draft       Compression Dictionary Security        October 2019
+Internet-Draft            Compression Security                  May 2020
 
 
-   o  Agents exchange messages over possibly-trusted, possibly-
-      authenticated, possibly-encrypted channels, which are vulnerable
-      to some combination of traffic analysis, eavesdropping, and
-      manipulation.
-
-   o  Agents exchange messages with parties they may not trust.
-
-   o  Agents may take protocol actions (generating, sending, receiving,
-      and interpreting messages) in response to triggers other than user
-      action.  Some examples include:
-
-      *  Replying automatically to received messages.
-
-      *  Relaying or forwarding received messages to other agents (e.g.,
-         an SMTP relay).
-
-      *  Exchanging messages at the behest of trusted or untrusted code
-         (e.g., trusted: a website codebase generating responses to HTTP
-         requests, untrusted: a website's JavaScript code running in a
-         browser.
-
-   This document aims to enumerate all security risks raised when using
-   dictionary-based compression in this baseline environment.  In
-   addition to attempting an exhaustive list of possible security risks,
-   this document will identify desirable properties of the protocol
-   stack and environment in which the compression is used and other
-   methods with which individual concerns can be obviated or mitigated.
-
-2.2.  Security Properties
-
-   [TODO]
-
-2.3.  Threat Model
-
-   [TODO]
-
-2.4.  Existing Attacks
-
-   This document excludes from its analysis security risks that are
-   already present without the use of dictionary compression.
-
-   In particular, compression as it broadly used today--without
-   dictionaries--is known to introduce vulnerabilities.  The most well
-   known series of these attacks ([CRIME] et al.) recovers message
-   content of inaccessible or encrypted traffic by observing message
-   sizes while manipulating other parts of the message or traffic
-   stream.
-
-
-
-
-Handte                     Expires May 2, 2020                  [Page 4]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
-
-3.  Dictionaries
-
-3.1.  Dictionary Compression
+4.3.  Dictionary Compression
 
    Classically, compression algorithms operate as stateless, pure
    functions.  In that mode, their output depends solely on the input
-   message and the algorithm's implementation details.  Dictionaries
+   message (and the algorithm's implementation details).  Dictionaries
    break that paradigm, introducing an additional input to the
    compression and decompression operations.  Compressors may then
    leverage the contents of that additional input--the dictionary--to
@@ -252,7 +418,7 @@ Internet-Draft       Compression Dictionary Security        October 2019
    dictionaries are in effect an out-of-band communication or pre-shared
    key between the compressor and decompressor.
 
-3.2.  Dictionary Contents
+4.4.  Dictionary Contents
 
    In principle, the contents of a dictionary are solely the concern of
    the compressor and decompressor, and implementations should be free
@@ -262,7 +428,7 @@ Internet-Draft       Compression Dictionary Security        October 2019
 
    Dictionaries take two broad forms.
 
-3.2.1.  Unstructured Dictionaries
+4.4.1.  Unstructured Dictionaries
 
    Some compressors (e.g., DEFLATE [DEFLATE] and Zstandard [ZSTD])
    accept arbitrary, unstructured bytestreams as dictionaries.  In these
@@ -272,22 +438,24 @@ Internet-Draft       Compression Dictionary Security        October 2019
    the compressor can choose to represent those bytes by referencing
    them in the dictionary, rather than by representing them literally.
 
+   The result of compression with this sort of dictionary is usually
+   functionally equivalent to performing a streaming compression of the
+   concatenation of the dictionary and message and throwing away the
+   first part of the compressed message that represents the dictionary.
 
 
 
-
-
-Handte                     Expires May 2, 2020                  [Page 5]
+Handte                  Expires 21 November 2020                [Page 8]
 
-Internet-Draft       Compression Dictionary Security        October 2019
+Internet-Draft            Compression Security                  May 2020
 
 
-3.2.2.  Structured Dictionaries
+4.4.2.  Structured Dictionaries
 
-   Some compressors (e.g., Brotli [BROTLI] and Zstandard [ZSTD]) accept
-   dictionaries that conform to a specific and defined format.  In these
-   cases, the dictionary data can consist of multiple components, each
-   of which is used in different ways.
+   Some compressors (e.g., Brotli [BROTLI] and Zstandard Section 5 of
+   [ZSTD]) accept dictionaries that conform to a specific and defined
+   format.  In these cases, the dictionary data can consist of multiple
+   components, each of which is used in different ways.
 
    metadata:  The dictionary may contain metadata that identifies the
       dictionary.  For example, Zstandard dictionaries include a 32-bit
@@ -301,75 +469,71 @@ Internet-Draft       Compression Dictionary Security        October 2019
    initial values:  For example, Zstandard allows the dictionary to
       initialize certain parts of the compressor's internal state (in
       particular, the initial values of Repeated_Offset1,
-      Repeated_Offset2, and Repeated_Offset3) [ZSTD].
+      Repeated_Offset2, and Repeated_Offset3) Section 5 of [ZSTD].
 
    instructions:  The dictionary may describe preprocessing or
       transformation steps to be taken on the input.  [TODO: expand]
 
-   corpus content:
+   corpus content:  untokenized:  For LZ77-style compressors [LZ77], the
+         structured dictionaries may still contain unstructured content
+         for the compressor to make matches against.
 
-      untokenized:  For LZ77-style compressors [LZ77], the structured
-         dictionaries may still contain unstructured content for the
-         compressor to make matches against.
+                    tokenized:  Alternatively, for LZ78-style
+         compressors [LZ78], the match content is tokenized (i.e., it
+         consists of a collection of independent strings, serialized in
+         some form).
 
-      tokenized:  Alternatively, for LZ78-style compressors [LZ78], the
-         match content is tokenized (i.e., it consists of a collection
-         of independent strings, serialized in some form).
+4.5.  Using Dictionaries
 
-3.3.  Using Dictionaries
+4.5.1.  Generating Dictionaries
 
-   In order to use compression dictionaries in a system, it is not only
-   the internals and integration points of the compressor and
-   decompressor whose behavior must change.  Dictionaries make
-   compression stateful, and applications that use dictionaries must
-   therefore participate in the whole lifecycle of state management.
-
-3.3.1.  Generating Dictionaries
-
-   As noted in Section 3.2.1, some compression algorithms can accept
+   As noted in Section 4.4.1, some compression algorithms can accept
    arbitrary, unstructured inputs as dictionaries.  These unstructured
    dictionaries do not require an explicit generation step; users can
    simply repurpose existing messages as dictionaries.  This potentially
-
-
-
-Handte                     Expires May 2, 2020                  [Page 6]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
-
    avoids the need to perform additional coordination and communication
-   to distribute purpose-built dictionaries.  See for example the
-   Compression Dictionaries for HTTP/2 proposal
+   to distribute purpose-built dictionaries.  Compression Dictionaries
+   for HTTP/2 is an example of a protocol that uses existing messages in
+   the protocol as dictionaries
    [I-D.vkrasnov-h2-compression-dictionaries].
+
+
+
+
+
+Handte                  Expires 21 November 2020                [Page 9]
+
+Internet-Draft            Compression Security                  May 2020
+
 
    Alternatively, the dictionary may be a separate object, purpose-built
    for the task.  Generating such a dictionary may be desirable for a
    number of reasons, including:
 
-   o  Building a dictionary is necessary to produce the structure in a
+   *  Building a dictionary is necessary to produce the structure in a
       structured dictionary.
 
-   o  Trained dictionaries generally perform better than using raw
+   *  Trained dictionaries generally perform better than using raw
       content.  The training process selects the parts of the sample
       corpus that are useful for compression and discard the parts that
       are not, producing a more compact and more effective dictionary.
 
-   o  The training process is an opportunity to sanitize the content
+   *  The training process is an opportunity to sanitize the content
       that ends up being used as a dictionary, potentially enhancing
-      security and privacy (see Section 4.8).
+      security and privacy (see Section 5.8).
 
-   In general, an algorithm is run over a corpus of sample messages
-   (such as the COVER algorithm [COVER] in Zstandard), which selects
-   commonly occurring substrings and bundles them together.
+   In general, an algorithm (such as the COVER algorithm [COVER] used by
+   Zstandard) is run over a corpus of sample messages, which selects the
+   most commonly occurring substrings and collects them as the contents
+   of the dictionary.
 
    Any structured metadata (e.g., symbol distribution statistics) can
-   then be calculated.  For example, Zstandard then compresses some of
-   the sample messages it was given with the dictionary and aggregates
-   the statistics resulting from those compressions and writes them into
-   the dictionary's header.
+   then be calculated and added.  For example, Zstandard then compresses
+   some of the sample messages it was given with the dictionary and
+   aggregates the statistics resulting from those compressions and
+   writes them into the dictionary's header.
 
-3.3.2.  Identifying Dictionaries
+4.5.2.  Identifying Dictionaries
 
    If freedom exists in a system as to which dictionary is to be used
    for a given message, there must be some way to distinguish which
@@ -386,17 +550,17 @@ Internet-Draft       Compression Dictionary Security        October 2019
 
    Arbitrary IDs:  The scheme associates an arbitrary identifier (e.g.,
       a number or string) with this dictionary.  This can have the
-
-
-
-Handte                     Expires May 2, 2020                  [Page 7]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
-
       advantage of being the most compact, but has the disadvantage that
       it neither describes the content of the dictionary nor where to
       get it.
+
+
+
+
+Handte                  Expires 21 November 2020               [Page 10]
+
+Internet-Draft            Compression Security                  May 2020
+
 
    Content-Derived IDs:  Identifiers that are deterministically derived
       from the content they identify (such as hashes), when designed
@@ -412,7 +576,7 @@ Internet-Draft       Compression Dictionary Security        October 2019
       it.  They are suitable insofar as that source can be trusted to
       reliably serve the same content to different participants.
 
-3.3.2.1.  Existing Systems
+4.5.2.1.  Existing Systems
 
    Existing compression schemes have selected the following
    identification systems:
@@ -438,22 +602,21 @@ Internet-Draft       Compression Dictionary Security        October 2019
    CDH2:  Compression Dictionaries for HTTP/2 uses an 8-bit integer
       [I-D.vkrasnov-h2-compression-dictionaries].
 
-
-
-
-
-
-
-
-Handte                     Expires May 2, 2020                  [Page 8]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
-
-3.3.3.  Distributing Dictionaries
+4.5.3.  Distributing Dictionaries
 
    Dictionaries must themselves be made accessible to participants.
    There are several possible approaches to doing this:
+
+
+
+
+
+
+
+Handte                  Expires 21 November 2020               [Page 11]
+
+Internet-Draft            Compression Security                  May 2020
+
 
    static:  The protocol defines the set of dictionaries.  Protocol
       implementations can statically include or independently generate
@@ -472,7 +635,7 @@ Internet-Draft       Compression Dictionary Security        October 2019
       over time.  Some or all participants can generate and publish
       dictionaries.
 
-3.3.4.  Selecting Dictionaries
+4.5.4.  Selecting Dictionaries
 
    Related to the above, because the same dictionary must be used to
    compress and decompress a particular message, it is necessary for the
@@ -498,19 +661,18 @@ Internet-Draft       Compression Dictionary Security        October 2019
       situations, such as when the set of dictionaries used by the
       protocol is fixed and guaranteed to be immediately available to
       all participants (such as by being included in the
-
-
-
-Handte                     Expires May 2, 2020                  [Page 9]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
-
       implementation's installation).  It can also be applied to a more
       loose definition of availability, if the decompressing agent is
       known to be capable of retrieving the dictionary based on the
       provided identifier, even if it doesn't have the dictionary at
       present.
+
+
+
+Handte                  Expires 21 November 2020               [Page 12]
+
+Internet-Draft            Compression Security                  May 2020
+
 
    bilateral:  When the set of dictionaries available to each party is
       not known to the other, additional messages may be required in
@@ -520,27 +682,30 @@ Internet-Draft       Compression Dictionary Security        October 2019
       the decompressor, which matches the flow of the compressed message
       itself, this mechanism requires communication in both directions.
 
-3.3.5.  Using Dictionaries
+4.5.5.  Using Dictionaries
 
    Having selected and retrieved a dictionary, it remains to actually
    present the dictionary to the compressor or decompressor and perform
    the compression operation.
 
-   Dictionaries, whether structured or not, are flat byte streams.  In
-   order to be used (especially in compression), most implementations
-   require that a preparation step be performed on the content of the
-   dictionary, populating the compressor's internal datastructures.
+   Dictionaries, whether they possess internal structure or not, are
+   stored and distributed as flat byte streams.  In order to be used
+   (especially in compression), most implementations require that a
+   preparation step be performed on the content of the dictionary,
+   parsing it and populating the compressor's internal datastructures.
 
    This materialization of the dictionary can sometimes be performed
    transparently as part of the compression or decompression operation.
    Alternatively, some compressors allow this materialization step to be
    performed separately / explicitly.  When this capability is used, the
    work of processing the serialized dictionary into the compressor's
-   internal datastructures only needs to be performed once, even when
-   this materialized dictionary object is used for many compressions or
-   decompressions.  This can lead to significant efficiencies.
+   internal datastructures only needs to be performed once, producing a
+   materialized object that be used for many compressions or
+   decompressions.  As a result, individual compression and
+   decompression operations can actually be faster than they would be
+   without a dictionary.
 
-3.3.6.  Deleting Dictionaries
+4.5.6.  Deleting Dictionaries
 
    Dictionary compression inherently entangles the lifetimes of
    different pieces of data.  When a dictionary is generated, it
@@ -550,31 +715,34 @@ Internet-Draft       Compression Dictionary Security        October 2019
    training data).  When that dictionary is used to compress a set of
    messages, it must be retained by the system for as long as the system
    desires to be able to decompress any of those messages.  The lifetime
-   of information derived from individual messages is thus tied to the
-   lifetime of many messages, or even the whole system.  This introduces
-   complexities for systems that wish to minimize or bound the lifetime
-   of individual pieces of data.
+   of information derived from many individual messages is thus tied to
+   the lifetime of every message.  This introduces complexities for
+   systems that wish to minimize or bound the lifetime of individual
+   pieces of data.
 
 
 
-Handte                     Expires May 2, 2020                 [Page 10]
+
+
+
+Handte                  Expires 21 November 2020               [Page 13]
 
-Internet-Draft       Compression Dictionary Security        October 2019
+Internet-Draft            Compression Security                  May 2020
 
 
-4.  Risks
+5.  Risks
 
    These subsections each describe a class of security issues that have
    been raised concerning dictionary-based compression and the
    surrounding protocol mechanisms.  Where possible and known,
    mitigations are described.
 
-4.1.  Revealing Message Content
+5.1.  Revealing Message Content
 
    This section discusses attacks that use dictionary compression to
    recover content in the message.
 
-4.1.1.  By Observing Which Dictionary is Used
+5.1.1.  By Observing Which Dictionary is Used
 
    Because dictionaries' effectiveness improves the more that they
    target a specific type of data, a protocol may want to use multiple
@@ -590,39 +758,39 @@ Internet-Draft       Compression Dictionary Security        October 2019
    and any data exchanged in that selection process may reveal other
    information about the sender and receiver, independent of the content
    of the specific message being handled, which is discussed in
-   Section 4.5.1.)
+   Section 5.5.1.)
 
    This information may itself be inferred from other signals, and
    therefore serve as a stepping stone connecting those signals to
    conclusions about message content.
 
    Message Size:  Observations of message sizes, especially headers or
-      connection negotiations (also discussed in Section 4.1.2), can
+      connection negotiations (also discussed in Section 5.1.2), can
       indicate whether a dictionary was used, or even perhaps which
       dictionary was used.
 
    Timing:  Compression with and without a dictionary may take
       observably different amounts of time.  This is also discussed in
-      Section 4.1.3.
+      Section 5.1.3.
 
    Dictionary Retrieval:  When dictionaries are retrieved dynamically,
       another vector for learning this information is simply observing
       whether a message triggers a fetch for a dictionary, and if so,
-      which dictionary.  (This is also discussed in Section 4.5.2.)
+      which dictionary.  (This is also discussed in Section 5.5.2.)
       Protocols should consider decoupling retrieving dictionaries
 
 
 
-Handte                     Expires May 2, 2020                 [Page 11]
+Handte                  Expires 21 November 2020               [Page 14]
 
-Internet-Draft       Compression Dictionary Security        October 2019
+Internet-Draft            Compression Security                  May 2020
 
 
       (especially when doing so is easily observable) from using them.
       For example, SDCH advertises and retrieves dictionaries
       independently of using them [I-D.lee-sdch-spec].
 
-4.1.2.  By Observing Message Size
+5.1.2.  By Observing Message Size
 
    By manipulating a portion of the message and observing the overall
    size of the compressed message, the attacker can recover information
@@ -652,12 +820,29 @@ Internet-Draft       Compression Dictionary Security        October 2019
    for example [I-D.vkrasnov-h2-compression-dictionaries].
 
    The remaining question is whether the dictionary constitutes a third
-   class of data (fixed, known data), with distinct security properties.
-   That is, even if the dictionary is neither under attacker control nor
-   does it contain private information, can its use still reveal
+   class of data (fixed, known data), with security properties and
+   interactions distinct from the two classes previously studied.  That
+   is, even if the dictionary is not under attacker control and neither
+   does it contain private information, whether its use can still reveal
    information about the contents of the message under compression.
 
-4.1.2.1.  Mitigating with Padding
+   In this regard, it's not clear that there is a practical difference
+   between
+   // [TODO]
+
+
+
+
+
+
+
+
+Handte                  Expires 21 November 2020               [Page 15]
+
+Internet-Draft            Compression Security                  May 2020
+
+
+5.1.2.1.  Mitigating with Padding
 
    One possible mitigation of the compressed message size oracle is to
    add padding to messages, either at the compression level or at the
@@ -665,16 +850,7 @@ Internet-Draft       Compression Dictionary Security        October 2019
    padding schemes can significantly inflate the cost of mounting such
    an attack, if not mitigate it completely.
 
-
-
-
-
-Handte                     Expires May 2, 2020                 [Page 12]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
-
-4.1.2.2.  Mitigating by Separating Content
+5.1.2.2.  Mitigating by Separating Content
 
    Another possible strategy to mitigate this attack is to avoid letting
    attacker-controlled data be matched against private data.  This can
@@ -682,7 +858,7 @@ Internet-Draft       Compression Dictionary Security        October 2019
    compressing them independently of each other.  See, e.g.,
    [CLOUDFLARE-NO-COMPRESS].
 
-4.1.2.3.  Mitigating by Avoiding Repeated Compressions
+5.1.2.3.  Mitigating by Avoiding Repeated Compressions
 
    A crucial feature of these attacks is that they require the message
    under attack to be re-compressed many times (proportional to the
@@ -697,12 +873,12 @@ Internet-Draft       Compression Dictionary Security        October 2019
    the secrets in question) in the message on each compression can make
    it much harder to extract information.
 
-4.1.3.  By Observing Timing
+5.1.3.  By Observing Timing
 
    Timing is another classic side-channel through which information can
    leak.  An attacker could potentially observe the time taken during
    compression or decompression, and draw conclusions about the contents
-   of a message.  As discussed in Section 4.7.1.3.1, it is possible that
+   of a message.  As discussed in Section 5.7.1.3.1, it is possible that
    a dictionary could affect the efficiency of compression and
    decompression.
 
@@ -714,23 +890,20 @@ Internet-Draft       Compression Dictionary Security        October 2019
    Alternatively, while compression and decompression are usually
    relatively fast and fairly content-insensitive operations, retrieving
    and initializing a dictionary might be a high-latency operation, and
+
+
+
+Handte                  Expires 21 November 2020               [Page 16]
+
+Internet-Draft            Compression Security                  May 2020
+
+
    therefore may be identifiable by observing timing.  Timing is
    therefore another potential avenue to observe which dictionary is
    used, which may in turn reveal information about the message being
-   processed (Section 4.1.1).
+   processed (Section 5.1.1).
 
-
-
-
-
-
-
-Handte                     Expires May 2, 2020                 [Page 13]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
-
-4.2.  Revealing Dictionary Content
+5.2.  Revealing Dictionary Content
 
    This section investigates the ability to leverage dictionary-based
    compression to reveal data other than the message content being
@@ -754,13 +927,13 @@ Internet-Draft       Compression Dictionary Security        October 2019
    compressed representation, such as its size) to other components of
    the system that are only trusted in a particular privacy domain.
 
-4.2.1.  By Observing Message Size
+5.2.1.  By Observing Message Size
 
-   Analogously to Section 4.1.2, an attacker can exploit knowledge about
+   Analogously to Section 5.1.2, an attacker can exploit knowledge about
    the contents of a message and its compressed size to draw conclusions
    about the contents of the dictionary.
 
-4.2.2.  In Compression
+5.2.2.  In Compression
 
    If an attacker can inspect the compressed representation of a
    message, they may be able to draw conclusions about the contents of
@@ -771,21 +944,23 @@ Internet-Draft       Compression Dictionary Security        October 2019
    helped if the attacker can cause the message to be compressed
    multiple times while varying some aspect of the compression.
 
-4.2.3.  In Decompression
+
+
+
+
+
+Handte                  Expires 21 November 2020               [Page 17]
+
+Internet-Draft            Compression Security                  May 2020
+
+
+5.2.3.  In Decompression
 
    In compression schemes that support the use of dictionaries, and
    especially unstructured dictionaries, it is possible to craft
    compressed messages independent of a dictionary in such a way that,
    when decompressed with a provided dictionary, the decompressed
    message that is produced will reveal information about the contents
-
-
-
-Handte                     Expires May 2, 2020                 [Page 14]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
-
    of the dictionary that was not known by the compressor (possibly
    trivially, by directly reproducing some or all of the dictionary's
    contents).
@@ -808,7 +983,7 @@ Internet-Draft       Compression Dictionary Security        October 2019
    the uncompressed message (i.e., the selected third-party resource)
    back to the compressing agent.
 
-4.3.  Manipulating Message Content
+5.3.  Manipulating Message Content
 
    When the decompressing agent uses a different dictionary to
    decompress a message than was used to compress the message (which is
@@ -822,6 +997,19 @@ Internet-Draft       Compression Dictionary Security        October 2019
    messages, even when they cannot directly manipulate the contents of
    the messages themselves.
 
+
+
+
+
+
+
+
+
+Handte                  Expires 21 November 2020               [Page 18]
+
+Internet-Draft            Compression Security                  May 2020
+
+
    A particular implication of this is that a compressed message may
    have multiple interpretations.  In one context (with one dictionary),
    the message can be constructed so as to appear benign or to pass a
@@ -834,20 +1022,12 @@ Internet-Draft       Compression Dictionary Security        October 2019
    validate the integrity of the message.  In particular, it may be
    desirable to validate the ultimate, uncompressed message, rather than
    validating the various components that the decompressing agent relies
-
-
-
-Handte                     Expires May 2, 2020                 [Page 15]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
-
    on to reconstitute the uncompressed message--the compressed message,
    the metadata identifying the dictionary, the associated dictionary
    contents, etc.  (However, this has its own problems
    [ENCRYPT-THEN-AUTHENTICATE].)
 
-4.3.1.  By Manipulating Message Content
+5.3.1.  By Manipulating Message Content
 
    The degenerate version of this attack is to manipulate the
    uncompressed message by directly manipulating the compressed
@@ -864,7 +1044,7 @@ Internet-Draft       Compression Dictionary Security        October 2019
    arise particularly if dictionary-based compression is an extension to
    an existing protocol.
 
-4.3.2.  By Manipulating Dictionary Content
+5.3.2.  By Manipulating Dictionary Content
 
    One possible avenue for this kind of attack is to cause the
    compressing agent and decompressing agent to have differing views of
@@ -875,38 +1055,38 @@ Internet-Draft       Compression Dictionary Security        October 2019
    Protocol designers should therefore take care to protect the
    integrity of dictionaries.  Two broad strategies exist to do so.
 
-4.3.2.1.  Mitigating by Validating Dictionary Contents
+
+
+
+
+
+
+Handte                  Expires 21 November 2020               [Page 19]
+
+Internet-Draft            Compression Security                  May 2020
+
+
+5.3.2.1.  Mitigating by Validating Dictionary Contents
 
    In the first, the identifier for the dictionary may itself be used to
    validate the contents that are retrieved, if the identifier scheme
    includes a cryptographically secure digest of the identified
-   dictionary's contents (see Section 3.3.2).  Alternatively, even if
+   dictionary's contents (see Section 4.5.2).  Alternatively, even if
    the identifier itself does not provide for , designers should specify
    other mechanisms to ensure the integrity and correctness of
    dictionaries (signatures, checksums, etc.).  See for example schemes
    like Subresource Integrity [SRI].
 
-
-
-
-
-
-
-
-Handte                     Expires May 2, 2020                 [Page 16]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
-
-4.3.2.2.  Mitigating by Validating Dictionary Sources
+5.3.2.2.  Mitigating by Validating Dictionary Sources
 
    Alternatively, participants can rely on a secure chain of custody
-   from a trusted source. ... [TODO]
+   from a trusted source. ...
+   // [TODO]
 
    In practice, it is probably advisable to implement both mitigations
    in some form.
 
-4.3.3.  By Manipulating Dictionary Identifiers
+5.3.3.  By Manipulating Dictionary Identifiers
 
    Another similar attack is to cause the different agents to have
    differing views of which dictionary to use.  That is, even if the
@@ -914,12 +1094,12 @@ Internet-Draft       Compression Dictionary Security        October 2019
    protected, if the association between one and the other can be
    manipulated, the same effect can be achieved.
 
-4.4.  Obfuscating Message Content
+5.4.  Obfuscating Message Content
 
    This section discusses attacks that obfuscate a malicious response's
    content through the use of dictionary-based compression.
 
-4.4.1.  From Intermediaries
+5.4.1.  From Intermediaries
 
    Various internet protocols exchange messages through intermediaries
    which inspect or modify the traffic as it passes by (proxies, caches,
@@ -934,6 +1114,14 @@ Internet-Draft       Compression Dictionary Security        October 2019
    In practice, the relevance of this concern is questionable.
    Intermediaries of this form [PERVASIVE-MONITORING] can be more
    harmful than they are beneficial to the security of participants and
+
+
+
+Handte                  Expires 21 November 2020               [Page 20]
+
+Internet-Draft            Compression Security                  May 2020
+
+
    their traffic.  Many protocols are moving towards end-to-end
    encrypted models that preclude intermediaries from interacting with
    messages in this way.
@@ -946,15 +1134,7 @@ Internet-Draft       Compression Dictionary Security        October 2019
    compression scheme in question or downgrade the message exchange to
    avoid its use.
 
-
-
-
-Handte                     Expires May 2, 2020                 [Page 17]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
-
-4.4.2.  Multiple Representations
+5.4.2.  Multiple Representations
 
    Although the majority (if not the entirety) of compression schemes do
    not guarantee determinism in compression, many implementations are
@@ -971,7 +1151,96 @@ Internet-Draft       Compression Dictionary Security        October 2019
    message will always be transformed into the same compressed
    representation.
 
-4.5.  Tracking Users
+5.4.3.  Additional Data
+
+   Compression can also be a vehicle for steganography.  Unlike the
+   other kinds of obfuscation discussed in this section, in which
+   compression is used to obscure the message it represents, this use of
+   compression smuggles some other, hidden message inside the compressed
+   representation of a benign host message.  This capability relies on
+   the same lack of determinism in compression as above: because there
+   are usually many valid compressed representations of a particular
+   message, it is possible to imbue meaning to the choice of one
+   representation over another.  Information conveyed this way is
+   invisible to a consumer that interacts with only the decompressed
+   message (except, again, via side-channels like those discussed in
+   Section 5.1), but can be retrieved by any party that can inspect the
+   raw compressed message.
+
+
+
+
+
+
+
+Handte                  Expires 21 November 2020               [Page 21]
+
+Internet-Draft            Compression Security                  May 2020
+
+
+5.4.3.1.  Explicit Auxiliary Data
+
+   Some compression formats provide features that allow the user to
+   explicitly embed arbitrary data that is independent of the
+   represented message.  For example, Zstandard specifies a "Skippable
+   Frame", which can contain arbitrary data and which the decompressor
+   ignores.
+
+5.4.3.2.  Choices in Compression
+
+   A more complicated approach is to use the data that represents the
+   message itself.  Some examples of choices that could be used
+
+   *  Overall compression choices.  E.g., whether optional features,
+      like checksums or dictionaries are used.
+
+   *  For LZ-style compressors, there is often a great deal of freedom
+      in the selection of matches.
+
+   *  For entropy codes, the frequency distribution used to encode the
+      message.
+
+   *  For block-based compressors, the points at which block boundaries
+      are inserted.  This approach is noteworthy, since unlike the rest,
+      these block boundaries are sometimes exposed to users as stopping
+      points as they perform a streaming decompression.  They might
+      therefore survive naive recompression.
+
+5.4.3.3.  Mitigation
+
+   Environments in which the piggybacking of covert data is a concern
+   may wish to decompress and then re-compress messages they relay.
+
+5.4.4.  Multiple Interpretations
+
+   It is possible for a single byte-string to conform multiple formats.
+   can conform to more than one format.  An attacker that can cause the
+   recipient to that was induced to parse the message as
+   // [TODO]
+
+   The most well-known example of this attack is probably ZIP files
+   [ZIP], which permit arbitrary prefixes data, making them trivially
+   polymorphic with any format that can be structured to permit
+   arbitrary trailing data.
+
+
+
+
+
+
+
+Handte                  Expires 21 November 2020               [Page 22]
+
+Internet-Draft            Compression Security                  May 2020
+
+
+   Applications should avoid relying on the content of a message to
+   deduce how to interpret it.  When an application can handle messages
+   of multiple formats (particularly, compressed or uncompressed),
+   explicit metadata should be attached, describing the format and
+   encoding of the message content.
+
+5.5.  Tracking Users
 
    This section discusses attacks that identify users through their
    negotiation and use of dictionaries.
@@ -980,7 +1249,7 @@ Internet-Draft       Compression Dictionary Security        October 2019
    of dictionaries, may allow observers to distinguish participants that
    do and do not support the feature.
 
-4.5.1.  Through Dictionary Negotiation
+5.5.1.  Through Dictionary Negotiation
 
    In systems which distribute dictionaries dynamically, a participant
    or observer may be able to learn about the past actions of other
@@ -998,19 +1267,7 @@ Internet-Draft       Compression Dictionary Security        October 2019
    distributed in one privacy domain are not advertised or used in
    others without reason.
 
-
-
-
-
-
-
-
-Handte                     Expires May 2, 2020                 [Page 18]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
-
-4.5.2.  Through Dictionary Retrieval
+5.5.2.  Through Dictionary Retrieval
 
    The distributor of a dictionary may also be able track the
    propagation of traffic amongst participants as it receives requests
@@ -1021,7 +1278,19 @@ Internet-Draft       Compression Dictionary Security        October 2019
    Dictionaries that are dynamically fetched should therefore be fetched
    from the same privacy domain they are used in.
 
-4.6.  Denial of Service
+
+
+
+
+
+
+
+Handte                  Expires 21 November 2020               [Page 23]
+
+Internet-Draft            Compression Security                  May 2020
+
+
+5.6.  Denial of Service
 
    Because dictionary-based compression introduces additional
    dependencies to the processes of generating and interpreting
@@ -1034,7 +1303,7 @@ Internet-Draft       Compression Dictionary Security        October 2019
    may consider whether messages should only be compressed with
    dictionaries known to already be in the possession of the recipients.
 
-4.7.  Resource Exhaustion
+5.7.  Resource Exhaustion
 
    This section discusses attacks that use dictionaries and dictionary-
    based compression to induce failures through the exhaustion of
@@ -1047,26 +1316,14 @@ Internet-Draft       Compression Dictionary Security        October 2019
    may be warranted, in fact, since the goal of dictionaries is to lower
    total resource consumption.
 
-4.7.1.  Resources
+5.7.1.  Resources
 
-4.7.1.1.  Bandwidth
+5.7.1.1.  Bandwidth
 
    Attacks of this form cause the target to consume their network
    resources, resulting in expense and degradation of service.
 
-
-
-
-
-
-
-
-Handte                     Expires May 2, 2020                 [Page 19]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
-
-4.7.1.1.1.  Messages
+5.7.1.1.1.  Messages
 
    If dictionaries can be used to make the compressed representation of
    messages artificially large, it may be possible to cause normal
@@ -1082,7 +1339,14 @@ Internet-Draft       Compression Dictionary Security        October 2019
    compression at all, the system may exceed its allocated network
    resources.
 
-4.7.1.1.2.  Dictionaries
+
+
+Handte                  Expires 21 November 2020               [Page 24]
+
+Internet-Draft            Compression Security                  May 2020
+
+
+5.7.1.1.2.  Dictionaries
 
    In protocols in which dictionaries are distributed dynamically, it
    may be possible to cause a target to repeatedly attempt to fetch
@@ -1094,14 +1358,14 @@ Internet-Draft       Compression Dictionary Security        October 2019
    are used to compress, this could potentially be an effective
    amplification attack.
 
-4.7.1.2.  Storage
+5.7.1.2.  Storage
 
    Attacks of this form target the storage resources of a participant
    (any of main memory, cache, disk space, etc.).
 
-4.7.1.2.1.  Message Size
+5.7.1.2.1.  Message Size
 
-   The same concerns apply here as in Section 4.7.1.1.1.
+   The same concerns apply here as in Section 5.7.1.1.1.
 
    Additionally, if dictionaries can be used to make the compressed
    representation of a message extremely small relative to the its
@@ -1113,19 +1377,10 @@ Internet-Draft       Compression Dictionary Security        October 2019
    Implementors should therefore apply storage quotas to messages based
    on the size of the representation in which they will actually be
    stored.  Implementors may also wish to consider rejecting messages
-
-
-
-
-Handte                     Expires May 2, 2020                 [Page 20]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
-
    whose compressed representation is significantly larger than the
    message represented.
 
-4.7.1.2.2.  Message Duplication
+5.7.1.2.2.  Message Duplication
 
    Obviously, flooding a target with messages is an easy way exhaust
    that participant's resources.  Using a dictionary does not natively
@@ -1139,10 +1394,19 @@ Internet-Draft       Compression Dictionary Security        October 2019
    representation (as a result of using a different dictionary), the
    participant may not be able or willing to deduplicate the message.
    For example, an HTTP Cache may be forced to store the same resource
-   multiple times, compressed with different dictionaries, if the choice
-   of dictionary is part of the cache's secondary key [HTTP-CACHING].
 
-4.7.1.2.3.  Dictionaries
+
+
+Handte                  Expires 21 November 2020               [Page 25]
+
+Internet-Draft            Compression Security                  May 2020
+
+
+   multiple times, compressed with different dictionaries, if the choice
+   of dictionary is part of the cache's secondary key Section 4.1 of
+   [HTTP-CACHING].
+
+5.7.1.2.3.  Dictionaries
 
    Another possible avenue of attack would be to cause a participant to
    consume space by storing the dictionaries themselves.  The
@@ -1171,30 +1435,31 @@ Internet-Draft       Compression Dictionary Security        October 2019
    controlled by the compression settings (and potentially instructions
    in the dictionary).
 
-
-
-Handte                     Expires May 2, 2020                 [Page 21]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
-
    Applications that allow other participants to influence the contents,
    number, size, retention period, or compression settings of
    dictionaries should take care to constrain the total at rest and in-
    memory footprints of those dictionaries.
 
-4.7.1.3.  Computation
+5.7.1.3.  Computation
 
    Attacks of this form target the computational resources (and by
    extension, the time and energy) of a participant in the protocol.
 
-4.7.1.3.1.  Using a Dictionary
+5.7.1.3.1.  Using a Dictionary
 
    For existing compressors that support dictionaries, compression and
    decompression with a dictionary is usually faster than without one.
 
+
+
+
+Handte                  Expires 21 November 2020               [Page 26]
+
+Internet-Draft            Compression Security                  May 2020
+
+
    However, as the kinds of information captured in dictionaries grows,
-   as described in Section 3.2.2, dictionaries may come to include
+   as described in Section 4.4.2, dictionaries may come to include
    instructions that significantly influence the speed of the
    compressor.  For example, dictionaries might specify a particularly
    laborious transformation to be performed on the input.  Or they might
@@ -1210,7 +1475,7 @@ Internet-Draft       Compression Dictionary Security        October 2019
    Analogously, care should be taken to avoid allowing dictionaries to
    influence decompression performance.
 
-4.7.1.3.2.  Generating Dictionaries
+5.7.1.3.2.  Generating Dictionaries
 
    Training a dictionary, depending on the methodology, can be a very
    expensive computation (building an optimal dictionary is NP-hard).
@@ -1220,21 +1485,13 @@ Internet-Draft       Compression Dictionary Security        October 2019
    of training a new dictionary (by selecting a fast algorithm or by
    limiting the amount of data over which the algorithm is run).
 
-4.7.2.  Targets
+5.7.2.  Targets
 
    In addition to the immediate compressing and decompressing agents,
    the mechanisms surrounding dictionary-based compression may allow for
    the targeting of other agents.
 
-
-
-
-Handte                     Expires May 2, 2020                 [Page 22]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
-
-4.7.2.1.  An Intermediary
+5.7.2.1.  An Intermediary
 
    Insofar as intermediaries in internet protocols are often responsible
    for handling a much higher volume of traffic in a much lighter-weight
@@ -1244,11 +1501,18 @@ Internet-Draft       Compression Dictionary Security        October 2019
    dictionaries, especially when the set of dictionaries is unbounded,
    is potentially untenable for intermediaries of that type.
 
-4.7.2.2.  A Third Party
+5.7.2.2.  A Third Party
 
    The mechanisms surrounding dictionary-based compression potentially
    also enable attacks against third parties, including parties with
    whom the attacker cannot exchange messages directly.
+
+
+
+Handte                  Expires 21 November 2020               [Page 27]
+
+Internet-Draft            Compression Security                  May 2020
+
 
    If a recipient can be induced to relay messages to a third-party, or
    to generate new messages directed at a third-party, a third party can
@@ -1283,19 +1547,12 @@ Internet-Draft       Compression Dictionary Security        October 2019
    same dictionary, or whether dictionary selection and negotiation
    should occur for each hop in the path of a message.
 
-
-
-Handte                     Expires May 2, 2020                 [Page 23]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
-
-4.8.  Generating Dictionaries
+5.8.  Generating Dictionaries
 
    This section discusses the potential for inadvertent leakage of
    private information in the creation of dictionaries.
 
-   As described in Section 3.3.1, dictionaries are commonly generated by
+   As described in Section 4.5.1, dictionaries are commonly generated by
    an algorithm run over a corpus sampled from the application's
    traffic.  For systems which wish to publish dictionaries publicly
    (or, at any rate, with less strict access controls than the traffic
@@ -1303,8 +1560,16 @@ Internet-Draft       Compression Dictionary Security        October 2019
    private information in the creation of dictionaries.
 
    The output of this training process, the dictionary, as described in
-   Section 3.2, may be composed of several different kinds of data.
+   Section 4.4, may be composed of several different kinds of data.
    Some of these pieces, like statistical summaries around symbol
+
+
+
+Handte                  Expires 21 November 2020               [Page 28]
+
+Internet-Draft            Compression Security                  May 2020
+
+
    frequencies, are unlikely to represent vectors for leaking useful
    information about the corpus they were trained on.  Other components,
    however, directly represent substrings found in the input corpus.
@@ -1313,7 +1578,7 @@ Internet-Draft       Compression Dictionary Security        October 2019
    their own dictionaries should take care to do so in a way that does
    not reproduce private data in the produced dictionaries' contents.
 
-4.8.1.  Handling Samples
+5.8.1.  Handling Samples
 
    Since dictionaries are generally produced from a collection of sample
    data, implementing a dictionary training capability may require
@@ -1328,7 +1593,7 @@ Internet-Draft       Compression Dictionary Security        October 2019
    transit, including retention limits, so as to limit the window of
    compromise.
 
-4.8.2.  Tagging Mitigations
+5.8.2.  Tagging Mitigations
 
    One strategy for ensuring that private data does not appear in
    dictionaries is to avoid presenting private data to the training
@@ -1337,15 +1602,6 @@ Internet-Draft       Compression Dictionary Security        October 2019
    that are private or by entirely removing samples that contain any
    private data in them.
 
-
-
-
-
-Handte                     Expires May 2, 2020                 [Page 24]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
-
    This discrimination of private and public content can rely on being
    able to identify private information on sight (e.g.,
    [CLOUDFLARE-NO-COMPRESS]).
@@ -1353,10 +1609,22 @@ Internet-Draft       Compression Dictionary Security        October 2019
    Alternatively, the trainer can rely on explicit signals, provided
    alongside the messages, to perform that discrimination.
 
-4.8.3.  Probabilistic Mitigations
+5.8.3.  Probabilistic Mitigations
 
    Another strategy relies on a statistical approach for the
    identification and removal of private information.
+
+
+
+
+
+
+
+
+Handte                  Expires 21 November 2020               [Page 29]
+
+Internet-Draft            Compression Security                  May 2020
+
 
    In building the dictionary's contents, the goal of the dictionary
    training algorithm is to collect the set of strings that most
@@ -1377,13 +1645,13 @@ Internet-Draft       Compression Dictionary Security        October 2019
    that private data (that is not somehow overrepresented in the
    training corpus) will be filtered out of the produced dictionary.
 
-4.9.  Complexity
+5.9.  Complexity
 
    Complexity is ever the enemy of security.  It is unavoidably the case
    that dictionary-based compression is more complicated than stateless
    compression.
 
-5.  Conclusions
+6.  Conclusions
 
    This document attempts to analyze risks and responses at the
    intersection of several widely varying factors--the protocol, the
@@ -1394,36 +1662,48 @@ Internet-Draft       Compression Dictionary Security        October 2019
    nonetheless be drawn.  Much of the complexity and risk in
    implementing dictionary-based compression comes from its surrounding
    apparatus: creating dictionaries, handling them, distributing them,
-
-
-
-Handte                     Expires May 2, 2020                 [Page 25]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
-
    storing them, identifying them, and so on.  A significant distinction
    can therefore be drawn between systems that have to grapple with
    those challenges versus those that don't.
 
-   [TODO]
+   // [TODO]
 
-6.  IANA Considerations
+   *  It removes a whole class of concern if the dictionaries in a
+      system can be treated as public data.
+
+   *  Relatedly, a whole class of concerns are mitigated if it can be
+      guaranteed that dictionaries do not contain any secret or private
+      data.
+
+
+
+Handte                  Expires 21 November 2020               [Page 30]
+
+Internet-Draft            Compression Security                  May 2020
+
+
+   *  Dictionaries should only be used in the context of their source's
+      trust domain
+      // [TODO: reword]
+
+   *  // [TODO]
+
+7.  IANA Considerations
 
    This document includes no actions for IANA.
 
    [RFC Editor: Please remove this section before publication.]
 
-7.  Security Considerations
+8.  Security Considerations
 
    This document enumerates known security considerations about a space
    that is under development.  The list of issues discussed above may
    not be exhaustive, but it is hopefully complete enough to aid in the
    design and implementation of future systems and protocols.
 
-8.  References
+9.  References
 
-8.1.  Normative References
+9.1.  Normative References
 
    [BROTLI]   Alakuijala, J. and Z. Szabadka, "Brotli Compressed Data
               Format", RFC 7932, DOI 10.17487/RFC7932, July 2016,
@@ -1438,7 +1718,7 @@ Internet-Draft       Compression Dictionary Security        October 2019
               DOI 10.17487/RFC8478, October 2018,
               <https://www.rfc-editor.org/info/rfc8478>.
 
-8.2.  Other Examples of Dictionary-Like Compression
+9.2.  Other Examples of Dictionary-Like Compression
 
    [HPACK]    Peon, R. and H. Ruellan, "HPACK: Header Compression for
               HTTP/2", RFC 7541, DOI 10.17487/RFC7541, May 2015,
@@ -1453,50 +1733,66 @@ Internet-Draft       Compression Dictionary Security        October 2019
 
 
 
-Handte                     Expires May 2, 2020                 [Page 26]
+Handte                  Expires 21 November 2020               [Page 31]
 
-Internet-Draft       Compression Dictionary Security        October 2019
+Internet-Draft            Compression Security                  May 2020
 
 
    [I-D.ietf-quic-qpack]
               Krasic, C., Bishop, M., and A. Frindell, Ed., "QPACK:
-              Header Compression for HTTP/3", draft-ietf-quic-qpack-10
-              (work in progress), 2019.
+              Header Compression for HTTP/3", Work in Progress,
+              Internet-Draft, draft-ietf-quic-qpack-10, 2019,
+              <https://tools.ietf.org/html/draft-ietf-quic-qpack-10>.
 
    [I-D.lee-sdch-spec]
               Butler, J., Lee, W., McQuade, B., and K. Mixter, "A
               Proposal for Shared Dictionary Compression over HTTP",
-              draft-lee-sdch-spec-00 (work in progress), October 2016.
+              Work in Progress, Internet-Draft, draft-lee-sdch-spec-00,
+              October 2016,
+              <https://tools.ietf.org/html/draft-lee-sdch-spec-00>.
 
    [I-D.reschke-http-oob-encoding]
               Reschke, J. and S. Loreto, "'Out-Of-Band' Content Coding
-              for HTTP", draft-reschke-http-oob-encoding-12 (work in
-              progress), 2017.
+              for HTTP", Work in Progress, Internet-Draft, draft-
+              reschke-http-oob-encoding-12, 2017,
+              <https://tools.ietf.org/html/draft-reschke-http-oob-
+              encoding-12>.
 
    [I-D.vandevenne-shared-brotli-format]
               Alakuijala, J., Duong, T., Kliuchnikov, E., Obryk, R.,
               Szabadka, Z., and L. Vandevenne, Ed., "Shared Brotli
-              Compressed Data Format", draft-vandevenne-shared-brotli-
-              format-04 (work in progress), August 2019.
+              Compressed Data Format", Work in Progress, Internet-Draft,
+              draft-vandevenne-shared-brotli-format-04, 21 August 2019,
+              <https://tools.ietf.org/html/draft-vandevenne-shared-
+              brotli-format-04>.
 
    [I-D.vkrasnov-h2-compression-dictionaries]
               Krasnov, V. and Y. Weiss, "Compression Dictionaries for
-              HTTP/2", draft-vkrasnov-h2-compression-dictionaries-03
-              (work in progress), 2018.
+              HTTP/2", Work in Progress, Internet-Draft, draft-vkrasnov-
+              h2-compression-dictionaries-03, 2018,
+              <https://tools.ietf.org/html/draft-vkrasnov-h2-
+              compression-dictionaries-03>.
 
-8.3.  Informative References
+9.3.  Informative References
 
    [BREACH]   Prado, A., Harris, N., and Y. Gluck, "BREACH: SSL, Gone in
               30 Seconds", 2013, <https://breachattack.com/>.
 
    [CLOUDFLARE-NO-COMPRESS]
               Loring, B., "A Solution to Compression Oracles on the
-              Web", March 2018, <https://blog.cloudflare.com/
-              a-solution-to-compression-oracles-on-the-web/>.
+              Web", 27 March 2018, <https://blog.cloudflare.com/a-
+              solution-to-compression-oracles-on-the-web/>.
 
    [COOKIES]  Barth, A., "HTTP State Management Mechanism", RFC 6265,
               DOI 10.17487/RFC6265, April 2011,
               <https://www.rfc-editor.org/info/rfc6265>.
+
+
+
+Handte                  Expires 21 November 2020               [Page 32]
+
+Internet-Draft            Compression Security                  May 2020
+
 
    [COVER]    Liao, K., Petri, M., Moffat, A., and A. Wirth, "Effective
               Construction of Relative Lempel-Ziv Dictionaries",
@@ -1506,13 +1802,6 @@ Internet-Draft       Compression Dictionary Security        October 2019
    [CRIME]    Rizzo, J. and T. Duong, "Compression Ratio Info-leak Made
               Easy", 2012, <https://www.ekoparty.org/archive/2012/
               CRIME_ekoparty2012.pdf>.
-
-
-
-Handte                     Expires May 2, 2020                 [Page 27]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
 
    [ENCRYPT-THEN-AUTHENTICATE]
               Krawczyk, H., "The Order of Encryption and Authentication
@@ -1530,24 +1819,43 @@ Internet-Draft       Compression Dictionary Security        October 2019
               <https://www.rfc-editor.org/info/rfc7234>.
 
    [I-D.arkko-arch-internet-threat-model]
-              Arkko, J., "Changes in the Internet Threat Model", draft-
-              arkko-arch-internet-threat-model-01 (work in progress),
-              July 2019.
+              Arkko, J., "Changes in the Internet Threat Model", Work in
+              Progress, Internet-Draft, draft-arkko-arch-internet-
+              threat-model-01, July 2019, <https://tools.ietf.org/html/
+              draft-arkko-arch-internet-threat-model-01>.
 
    [I-D.draft-farrell-etm]
               Farrell, S., "We're gonna need a bigger threat model",
-              draft-farrell-etm-03 (work in progress), July 2019.
+              Work in Progress, Internet-Draft, draft-farrell-etm-03,
+              July 2019,
+              <https://tools.ietf.org/html/draft-farrell-etm-03>.
 
    [I-D.draft-kucherawy-httpbis-dict-sec]
               Kucherawy, M., "Security Considerations Regarding
-              Compression Dictionaries", draft-kucherawy-httpbis-dict-
-              sec-00 (work in progress), November 2018.
+              Compression Dictionaries", Work in Progress, Internet-
+              Draft, draft-kucherawy-httpbis-dict-sec-00, November 2018,
+              <https://tools.ietf.org/html/draft-kucherawy-httpbis-dict-
+              sec-00>.
+
+
+
+
+
+
+
+
+
+Handte                  Expires 21 November 2020               [Page 33]
+
+Internet-Draft            Compression Security                  May 2020
+
 
    [I-D.pironti-tls-length-hiding]
               Pironti, A. and N. Mavrogiannopoulos, "Length Hiding
-              Padding for the Transport Layer Security Protocol", draft-
-              pironti-tls-length-hiding-02 (work in progress), September
-              2013.
+              Padding for the Transport Layer Security Protocol", Work
+              in Progress, Internet-Draft, draft-pironti-tls-length-
+              hiding-02, September 2013, <https://tools.ietf.org/html/
+              draft-pironti-tls-length-hiding-02>.
 
    [LZ77]     Ziv, J. and A. Lempel, "A Universal Algorithm for
               Sequential Data Compression",
@@ -1558,17 +1866,6 @@ Internet-Draft       Compression Dictionary Security        October 2019
               sequences via variable-rate coding",
               DOI 10.1109/TIT.1978.1055934, September 1978,
               <https://ieeexplore.ieee.org/document/1055934>.
-
-
-
-
-
-
-
-Handte                     Expires May 2, 2020                 [Page 28]
-
-Internet-Draft       Compression Dictionary Security        October 2019
-
 
    [PERVASIVE-MONITORING]
               Farrell, S. and H. Tschofenig, "Pervasive Monitoring Is an
@@ -1595,54 +1892,41 @@ Internet-Draft       Compression Dictionary Security        October 2019
               "Subresource Integrity", March 2014,
               <https://www.w3.org/TR/SRI/>.
 
-   [ZSTD-DICTS]
-              Collet, Y., Handte, W., and N. Terrell, "5 ways Facebook
-              improved compression at scale with Zstandard", December
-              2018, <https://code.fb.com/core-data/zstandard/>.
+   [ZIP]      [TODO], [TODO]., "APPNOTE.TXT - .ZIP File Format
+              Specification", April 2019,
+              <https://pkware.cachefly.net/webdocs/casestudies/
+              APPNOTE.TXT>.
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Handte                     Expires May 2, 2020                 [Page 29]
+Handte                  Expires 21 November 2020               [Page 34]
 
-Internet-Draft       Compression Dictionary Security        October 2019
+Internet-Draft            Compression Security                  May 2020
 
+
+   [ZSTD-DICTS]
+              Collet, Y., Handte, W. F. P., and N. Terrell, "5 ways
+              Facebook improved compression at scale with Zstandard", 19
+              December 2018, <https://code.fb.com/core-data/zstandard/>.
 
 Appendix A.  Acknowledgements
 
    The author wishes to acknowledge the following for their help in
-   writing and improving this document: Murray Kucherawy, Yann Collet,
-   Nick Terrell, ... [TODO]
+   writing and improving this document: Yann Collet, Murray Kucherawy,
+   Nick Terrell, Martin Thomson...
+   // [TODO]
 
 Author's Address
 
    W. Felix P. Handte
    Facebook, Inc.
    770 Broadway
-   New York, NY  10003
-   US
+   New York, NY 10003
+   United States of America
 
-   EMail: felixh@fb.com
-
-
+   Email: w@felixhandte.com
 
 
 
@@ -1673,8 +1957,4 @@ Author's Address
 
 
 
-
-
-
-
-Handte                     Expires May 2, 2020                 [Page 30]
+Handte                  Expires 21 November 2020               [Page 35]
